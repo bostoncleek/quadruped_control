@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>quadruped_simulation</name>
+  <version>1.0.0</version>
+  <description>Drake physics interface</description>
+  <maintainer email="boston@picknik.ai">bostoncleek</maintainer>
+  <license>BSD-3</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <depend>roscpp</depend>
+
+</package>

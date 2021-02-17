@@ -1,0 +1,7 @@
+# Drake physics parameters
+time_step: 0.0001
+static_friction: 1.0
+dynamic_friction: 1.0
+penetration_allowance: 0.001
+stiction_tolerance: 0.001
+real_time_rate: 1.0

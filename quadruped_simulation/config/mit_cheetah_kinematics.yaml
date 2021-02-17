@@ -1,0 +1,7 @@
+# Kinematic configuration for the MIT cheetah 
+initial_pose:
+  postion: [0.0, 0.0, 0.5]
+  orientation: [0.0, 0.0, 0.0, 1.0]
+
+links:
+  base_link: "trunk"
