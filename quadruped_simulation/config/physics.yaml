@@ -1,5 +1,8 @@
 # Drake physics parameters
+# time_step: used in physics integration 
+# viz_time_step: physics publish data time step
 time_step: 0.0001
+viz_time_step: 0.001
 static_friction: 1.0
 dynamic_friction: 1.0
 penetration_allowance: 0.001
