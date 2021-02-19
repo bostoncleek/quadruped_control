@@ -14,6 +14,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  quadruped_msgs
   roscpp
   sensor_msgs
 )
@@ -111,6 +112,7 @@ catkin_package(
 #  INCLUDE_DIRS include
  LIBRARIES ${PROJECT_NAME}
  CATKIN_DEPENDS
+  quadruped_msgs
   roscpp
   sensor_msgs
  DEPENDS drake

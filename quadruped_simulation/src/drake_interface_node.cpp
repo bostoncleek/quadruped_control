@@ -19,6 +19,7 @@
 // ROS
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
+#include <quadruped_msgs/CoMState.h>
 
 // Drkae
 #include <drake/systems/framework/framework_common.h>
@@ -54,8 +55,8 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
-
+  ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
+  ros::Publisher com_pub = nh.advertise<quadruped_msgs::CoMState>("com_state", 1);
 
   // // Use 1 thread
   // ros::AsyncSpinner spinner(1);
@@ -221,6 +222,8 @@ int main(int argc, char** argv)
     const drake::VectorX<double>& state_vector =
         context.get_discrete_state_vector().CopyToVector();
 
+    ////////////////
+    // Joint states
     std::vector<double> joint_positions(num_joints);
     VectorXd::Map(&joint_positions.at(0), num_joints) = state_vector.segment(7, num_joints);
 
@@ -236,6 +239,29 @@ int main(int argc, char** argv)
     js_msg.velocity = joint_velocities;
 
     joint_pub.publish(js_msg);
+
+    ////////////////
+    // CoM
+    quadruped_msgs::CoMState com_msg;
+    com_msg.pose.orientation.w = state_vector(0);
+    com_msg.pose.orientation.x = state_vector(1);
+    com_msg.pose.orientation.y = state_vector(2);
+    com_msg.pose.orientation.z = state_vector(3);
+    
+    com_msg.pose.position.x = state_vector(4);
+    com_msg.pose.position.y = state_vector(5);
+    com_msg.pose.position.z = state_vector(6);
+
+    com_msg.twist.angular.x = state_vector(7 + num_joints);
+    com_msg.twist.angular.y = state_vector(8 + num_joints);
+    com_msg.twist.angular.z = state_vector(9 + num_joints);
+
+    com_msg.twist.linear.x = state_vector(10 + num_joints);
+    com_msg.twist.linear.y = state_vector(11 + num_joints);
+    com_msg.twist.linear.z = state_vector(12 + num_joints);
+
+    com_pub.publish(com_msg);
+
 
     // const VectorXd actual_pos = plant.GetPositions(plant_context);
     // std::cout << "actual pos: \n" << actual_pos << std::endl;
