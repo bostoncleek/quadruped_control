@@ -18,6 +18,7 @@
 
 // ROS
 #include <ros/ros.h>
+#include <sensor_msgs/JointState.h>
 
 // Drkae
 #include <drake/systems/framework/framework_common.h>
@@ -31,8 +32,10 @@
 #include <drake/systems/analysis/simulator.h>
 #include <drake/multibody/plant/multibody_plant.h>
 #include <drake/systems/framework/diagram_builder.h>
-#include "drake/systems/controllers/pid_controller.h"
-#include "drake/systems/controllers/inverse_dynamics_controller.h"
+#include <drake/systems/controllers/pid_controller.h>
+#include <drake/systems/controllers/inverse_dynamics_controller.h>
+#include <drake/manipulation/util/robot_plan_utils.h>
+
 
 using drake::math::RigidTransformd;
 using drake::systems::VectorBase;
@@ -51,6 +54,9 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
+  ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("/joint_states", 1);
+
+
   // // Use 1 thread
   // ros::AsyncSpinner spinner(1);
   // spinner.start();
@@ -59,8 +65,9 @@ int main(int argc, char** argv)
   const auto urdf_path = pnh.param<std::string>("urdf_path", "../urdf/robot.urdf");
   ROS_INFO_NAMED(LOGNAME, "File path: %s", urdf_path.c_str());
 
-  // Physics 
+  // Physics
   const auto time_step = pnh.param<double>("time_step", 0.001);
+  const auto viz_time_step = pnh.param<double>("viz_time_step", 0.001);
   const auto static_friction = pnh.param<double>("static_friction", 1.0);
   const auto dynamic_friction = pnh.param<double>("dynamic_friction", 1.0);
   const auto penetration_allowance = pnh.param<double>("penetration_allowance", 0.001);
@@ -69,18 +76,27 @@ int main(int argc, char** argv)
 
   // Robot initial pose
   // See MultibodyPlant SetPositions() to set init joint positions
-  std::vector<double> init_pose = {0.0, 0.0, 0.0};
-  std::vector<double> init_orientation = {0.0, 0.0, 0.0, 1.0};
+  std::vector<double> init_pose = { 0.0, 0.0, 0.0 };
+  std::vector<double> init_orientation = { 0.0, 0.0, 0.0, 1.0 };
   pnh.getParam("initial_pose/postion", init_pose);
   pnh.getParam("initial_pose/orientation", init_orientation);
 
-  // Robot kinematics 
+  // Robot kinematics
   const auto base_link_name = pnh.param<std::string>("links/base_link", "base_link");
 
-  // Robot initial joints 
+  // Robot initial joints
+  std::vector<std::string> joint_names;
+  std::vector<double> init_joint_positions;
+  pnh.getParam("joints/joint_names", joint_names);
+  pnh.getParam("joints/joint_positions", init_joint_positions);
 
-  // TODO: figure out why mit cheetah robot wont spawn above plane
-  // Place base_link relative to world_body 
+  const unsigned int num_joints = joint_names.size();
+  if (joint_names.size() != init_joint_positions.size())
+  {
+    ROS_ERROR_STREAM_NAMED(LOGNAME, "Number of initial joint positions does not match the number of joints");
+  }
+
+  // Place base_link relative to world_body
   const Vector3d start_position(init_pose.data());
   const Quaterniond start_orientation(init_orientation.data());
   const RigidTransformd Twb(start_orientation, start_position);
@@ -109,6 +125,8 @@ int main(int argc, char** argv)
                                drake::geometry::HalfSpace(), "GroundVisualGeometry",
                                green);
 
+  plant.set_penetration_allowance(penetration_allowance);
+
   // For a time-stepping model only static friction is used.
   const drake::multibody::CoulombFriction<double> ground_friction(static_friction,
                                                                   dynamic_friction);
@@ -123,21 +141,11 @@ int main(int argc, char** argv)
   // (joints, bodies, force elements, constraints, etc.) are added
   //  and before any computations are performed.
   plant.Finalize();
-  ROS_INFO_NAMED(LOGNAME, "plant finalized: %s", plant.is_finalized() ? "True" : "False");
 
-  plant.set_penetration_allowance(penetration_allowance);
-
-  // const int num_positions = plant.num_positions();
-  // const int num_velocities = plant.num_velocities();
-  // ROS_INFO_NAMED(LOGNAME, "num positions: %i", num_positions);
-  // ROS_INFO_NAMED(LOGNAME, "num velocities: %i", num_velocities);
-
-  // const VectorXd kp = VectorXd::Constant(num_positions, 100);
-  // const VectorXd kd = VectorXd::Constant(num_positions, 10);
-  // const VectorXd ki = VectorXd::Zero(num_positions);
-
-  // auto controller = builder.AddSystem<drake::systems::controllers::PidController>(kp, ki, kd);
-
+  if (!plant.is_finalized())
+  {
+    ROS_ERROR_STREAM_NAMED(LOGNAME, "plant failed to finalize");
+  }
 
   // Publish contact results to drake_visualizer.
   drake::multibody::ConnectContactResultsToDrakeVisualizer(&builder, plant);
@@ -155,16 +163,27 @@ int main(int argc, char** argv)
   drake::systems::Context<double>& plant_context =
       diagram->GetMutableSubsystemContext(plant, diagram_context.get());
 
+
   ROS_INFO_NAMED(LOGNAME, "Number of actuated joints: %i", plant.num_actuated_dofs());
   ROS_INFO_NAMED(LOGNAME, "Number of actuaters: %i", plant.num_actuators());
+  ROS_INFO_NAMED(LOGNAME, "Number of generalized positions: %i", plant.num_positions());
+  ROS_INFO_NAMED(LOGNAME, "Number of generalized velocities: %i", plant.num_velocities());
 
   const drake::systems::InputPort<double>& input_port = plant.get_actuation_input_port();
-  const drake::systems::OutputPort<double>& output_port = plant.get_state_output_port();
-  ROS_INFO_NAMED(LOGNAME, "Input port name: %s", input_port.get_name().c_str());
-  ROS_INFO_NAMED(LOGNAME, "Output port name: %s", output_port.get_name().c_str());
+  // const drake::systems::OutputPort<double>& output_port = plant.get_state_output_port();
+  // ROS_INFO_NAMED(LOGNAME, "Input port name: %s", input_port.get_name().c_str());
+  // ROS_INFO_NAMED(LOGNAME, "Output port name: %s", output_port.get_name().c_str());
+
+  // Set initial positons   
+  // TODO: set init COM pose here too?
+  Eigen::VectorBlock<drake::VectorX<double>> state_vec = plant_context.get_mutable_discrete_state(0).get_mutable_value();
+  const VectorXd init_joint_vec = Eigen::Map<VectorXd, Eigen::Unaligned>(init_joint_positions.data(), init_joint_positions.size());
+  state_vec.segment(7, init_joint_positions.size()) = init_joint_vec;
 
   // Set torque input to zeros
   VectorXd tau = VectorXd::Zero(plant.num_actuated_dofs());
+  // VectorXd tau = VectorXd::Constant(plant.num_actuated_dofs(), 0.1);
+
   input_port.FixValue(&plant_context, tau);
 
   const drake::multibody::Body<double>& base_link = plant.GetBodyByName(base_link_name);
@@ -177,7 +196,6 @@ int main(int argc, char** argv)
   // simulator.set_publish_every_time_step(true);
   // simulator.AdvanceTo(10.0);
 
-  const auto dt = 1e-3;
   auto current_time = 0.0;
   while (nh.ok())
   {
@@ -190,58 +208,61 @@ int main(int argc, char** argv)
     //   input_port.FixValue(&plant_context, tau);
     // }
 
-    // // const drake::systems::Context<double>& context = simulator.get_context();
-    // // const drake::systems::DiscreteValues<double>& discrete_values =
-    // // context.get_discrete_state(); const drake::VectorX<double>& state_vector =
-    // // discrete_values.get_vector().CopyToVector();
+    // TODO: which context to use?
+    const drake::systems::Context<double>& context = simulator.get_context();
 
+    // states 
+    // Orientation: qw, qx, qy, qz
+    // Position: x, y, z
+    // Joint positions 
+    // Angular velocity: rdot, pdot, ydot 
+    // Velocity vector: xdot, ydot, zdot 
+    // Joint velocity 
     const drake::VectorX<double>& state_vector =
-        plant_context.get_discrete_state_vector().CopyToVector();
+        context.get_discrete_state_vector().CopyToVector();
 
-    // // const drake::multibody::Joint<double>& left_joint =
-    // // plant.GetJointByName("left_wheel_axle"); const drake::multibody::Joint<double>&
-    // // right_joint = plant.GetJointByName("right_wheel_axle"); const double& left_position
-    // // = left_joint.GetOnePosition(context); const double& right_position =
-    // // right_joint.GetOnePosition(context); const double& left_velocity =
-    // // left_joint.GetOneVelocity(context); const double& right_velocity =
-    // // right_joint.GetOneVelocity(context);
+    std::vector<double> joint_positions(num_joints);
+    VectorXd::Map(&joint_positions.at(0), num_joints) = state_vector.segment(7, num_joints);
 
-    // // std::cout << "Joint position test: \n" << left_position << "\n" << right_position
-    // // << std::endl; std::cout << "Joint velocity test: \n" << left_velocity << "\n" <<
-    // // right_velocity << std::endl;
+    std::vector<double> joint_velocities(num_joints);
+    VectorXd::Map(&joint_velocities.at(0), num_joints) = state_vector.tail(num_joints);
 
+    // TODO: add effort to msg?
+    sensor_msgs::JointState js_msg;
+    js_msg.header.frame_id = "";
+    js_msg.header.stamp = ros::Time::now();
+    js_msg.name = joint_names;
+    js_msg.position = joint_positions;
+    js_msg.velocity = joint_velocities;
 
-    // std::cout << "------------------" << std::endl;
-    // std::cout << "Orientation (qx, qy, qz, qw): \n"
-    //           << state_vector.segment(0, 4) << std::endl;
-    // std::cout << "---" << std::endl;
+    joint_pub.publish(js_msg);
 
-    // std::cout << "Position: \n" << state_vector.segment(4, 3) << std::endl;
-    // std::cout << "---" << std::endl;
+    // const VectorXd actual_pos = plant.GetPositions(plant_context);
+    // std::cout << "actual pos: \n" << actual_pos << std::endl;
+    // std::cout << "state_vector: \n" << state_vector << std::endl;
 
-    // std::cout << "Joint position: \n" << state_vector.segment(7, 2) << std::endl;
-    // std::cout << "---" << std::endl;
-
-    // std::cout << "Angular velocity vector: \n" << state_vector.segment(9, 3) << std::endl;
-    // std::cout << "---" << std::endl;
-
-    // std::cout << "Velocity vector: \n" << state_vector.segment(12, 3) << std::endl;
-    // std::cout << "---" << std::endl;
-
-    // std::cout << "Joint velocity: \n" << state_vector.segment(15, 2) << std::endl;
-    // std::cout << "------------------\n" << std::endl;
-
-    // const drake::systems::BasicVector<double>& state = context.get_discrete_state_vector();
-    // const drake::VectorX<double>& state_vector = state.CopyToVector();
-    // std::cout << "State: \n" << state_vector << std::endl;
-    // std::cout << "size: " << state_vector.size() << std::endl;
+    // const drake::multibody::Joint<double>& RL_hip_joint = plant.GetJointByName("RL_hip_joint");
+    // const drake::multibody::Joint<double>& FL_hip_joint = plant.GetJointByName("FL_hip_joint");
+    // const drake::multibody::Joint<double>& RR_hip_joint = plant.GetJointByName("RR_hip_joint");
+    // const drake::multibody::Joint<double>& FR_hip_joint = plant.GetJointByName("FR_hip_joint");
+    
+    // const double& RL_hip_joint_velocity = RL_hip_joint.GetOneVelocity(context);
+    // const double& FL_hip_joint_velocity = FL_hip_joint.GetOneVelocity(context);
+    // const double& RR_hip_joint_velocity = RR_hip_joint.GetOneVelocity(context);
+    // const double& FR_hip_joint_velocity = FR_hip_joint.GetOneVelocity(context);
+    
+    // std::cout << "Joint velocity test: \n";
+    // std::cout << RL_hip_joint_velocity << "\n";
+    // std::cout << FL_hip_joint_velocity << "\n";
+    // std::cout << RR_hip_joint_velocity << "\n";
+    // std::cout << FR_hip_joint_velocity << "\n";
 
     // ROS_INFO_NAMED(LOGNAME, "Num groups: %i, with num elements: %i",
     // discrete_values.num_groups(), discrete_values.size()); ROS_INFO_NAMED(LOGNAME,
     // "Real time rate: %s", output_port.GetFullDescription().c_str()); ROS_INFO_NAMED(LOGNAME,
     // "Real time rate: %f", simulator.get_actual_realtime_rate());
     simulator.AdvanceTo(current_time);
-    current_time += dt;
+    current_time += viz_time_step;
   }
 
   ros::shutdown();

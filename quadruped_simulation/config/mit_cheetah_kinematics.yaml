@@ -1,7 +1,19 @@
 # Kinematic configuration for the MIT cheetah 
+# postion: x,y,z
+# orientation: x,y,z,w
+
 initial_pose:
-  postion: [0.0, 0.0, 0.5]
+  postion: [0.0, 0.0, 0.1] 
   orientation: [0.0, 0.0, 0.0, 1.0]
 
 links:
   base_link: "trunk"
+
+joints:
+  joint_names: ["RL_hip_joint", "FL_hip_joint", "RR_hip_joint", "FR_hip_joint",
+                "RL_thigh_joint", "FL_thigh_joint", "RR_thigh_joint", "FR_thigh_joint",
+                "RL_calf_joint", "FL_calf_joint", "RR_calf_joint", "FR_calf_joint"]
+
+  joint_positions: [0.0, 0.0, 0.0, 0.0, 1.61, 1.61, 1.61, 1.61, -2.78, -2.78, -2.78, -2.78]
+
+  

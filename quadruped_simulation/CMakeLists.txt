@@ -15,6 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   roscpp
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -109,7 +110,9 @@ find_package(drake CONFIG REQUIRED PATHS /opt/drake)
 catkin_package(
 #  INCLUDE_DIRS include
  LIBRARIES ${PROJECT_NAME}
- CATKIN_DEPENDS roscpp
+ CATKIN_DEPENDS
+  roscpp
+  sensor_msgs
  DEPENDS drake
 )
 
