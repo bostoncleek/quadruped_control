@@ -31,8 +31,4 @@ joints:
                          "RR_hip_motor", "RR_thigh_motor", "RR_calf_motor",
                          "FR_hip_motor", "FR_thigh_motor", "FR_calf_motor"]
 
-  # joint_actuator_names: ["RL_hip_motor", "FL_hip_motor", "RR_hip_motor", "FR_hip_motor",
-  #                        "RL_thigh_motor", "FL_thigh_motor", "RR_thigh_motor", "FR_thigh_motor",
-  #                        "RL_calf_motor", "FL_calf_motor", "RR_calf_motor", "FR_calf_motor"]
-
   joint_torques: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]

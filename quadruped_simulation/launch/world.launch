@@ -9,7 +9,7 @@
 
   <node pkg="quadruped_simulation" type="drake_interface" name="drake_interface" output="screen">
     <rosparam command="load" file="$(find quadruped_simulation)/config/physics.yaml" />
-    <rosparam command="load" file="$(find quadruped_simulation)/config/mit_cheetah_kinematics.yaml" />
+    <rosparam command="load" file="$(find quadruped_simulation)/config/mit_cheetah_config.yaml" />
     <param name="urdf_path" value="/home/boston/quadruped_ws/src/mit_cheetah_description/urdf/cheetah_drake.urdf" />
   </node>
 

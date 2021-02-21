@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   quadruped_msgs
   roscpp
   sensor_msgs
+  std_srvs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -115,6 +116,7 @@ catkin_package(
   quadruped_msgs
   roscpp
   sensor_msgs
+  std_srvs
  DEPENDS drake
 )
 

@@ -21,6 +21,7 @@
 
 // ROS
 #include <ros/ros.h>
+#include <std_srvs/Empty.h>
 #include <sensor_msgs/JointState.h>
 #include <quadruped_msgs/CoMState.h>
 #include <quadruped_msgs/JointTorqueCmd.h>
@@ -51,6 +52,7 @@ using Eigen::VectorXd;
 
 const static std::string LOGNAME = "drake_interface";
 static bool joint_cmd_received = false;
+static bool start_config_received = false;
 
 // The joint torque map, maps joint actuator names to index in control vector.
 static std::map<std::string, unsigned int> joint_torque_map;
@@ -76,7 +78,7 @@ void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
       const auto index = joint_torque_map.at(msg->actuator_name.at(i));
       tau(index) = msg->torque.at(i);
 
-      std::cout << msg->actuator_name.at(i) << " " << index << std::endl;
+      // std::cout << msg->actuator_name.at(i) << " " << index << std::endl;
     }
     catch (const std::out_of_range& e)
     {
@@ -84,8 +86,17 @@ void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
     }
   }
 
-  std::cout << "Tau: \n" << tau << std::endl;
+  // std::cout << "Tau: \n" << tau << std::endl;
 }
+
+
+bool startConfigCallback(std_srvs::Empty::Request&, std_srvs::Empty::Response&)
+{
+  ROS_INFO_STREAM_NAMED(LOGNAME, "Resetting robot to starting configuration");
+  start_config_received = true;
+  return true;
+}
+
 
 
 int main(int argc, char** argv)
@@ -99,6 +110,9 @@ int main(int argc, char** argv)
   ros::Publisher com_pub = nh.advertise<quadruped_msgs::CoMState>("com_state", 1);
   ros::Subscriber joint_torque_sub =
       nh.subscribe("joint_torque_cmd", 1, jointTorqueCallback);
+
+  ros::ServiceServer start_server = nh.advertiseService("start_position", startConfigCallback);
+
 
   // // Use 1 thread
   // ros::AsyncSpinner spinner(1);
@@ -159,10 +173,10 @@ int main(int argc, char** argv)
     joint_torque_map.emplace(std::make_pair(joint_actuator_names.at(i), i));
   }
 
-  for (const auto& [key, value] : joint_torque_map)
-  {
-    std::cout << key << " " << value << std::endl;
-  }
+  // for (const auto& [key, value] : joint_torque_map)
+  // {
+  //   std::cout << key << " " << value << std::endl;
+  // }
 
   // Place base_link relative to world_body
   const Vector3d start_position(init_pose.data());
@@ -287,13 +301,29 @@ int main(int argc, char** argv)
     //   // input_port.FixValue(&plant_context, tau);
     // }
 
+    if (start_config_received)
+    {
+      // Reset initial joint positions 
+      Eigen::VectorBlock<drake::VectorX<double>> state_vec =
+          plant_context.get_mutable_discrete_state(0).get_mutable_value();
+      state_vec.segment(7, init_joint_positions.size()) = init_joint_vec;
+
+      // Reset initial joint torques
+      tau = Eigen::Map<VectorXd, Eigen::Unaligned>(init_joint_torques.data(),
+                                               init_joint_torques.size());
+      input_port.FixValue(&plant_context, tau);
+
+      // // Reset free body pose in world
+      plant.SetFreeBodyPoseInWorldFrame(&plant_context, base_link, Twb);
+
+      start_config_received = false;
+    }
+
     if (joint_cmd_received)
     {
-      ROS_INFO_STREAM_NAMED(LOGNAME, "Cmd received");
       input_port.FixValue(&plant_context, tau);
       joint_cmd_received = false;
     }
-
 
     // states
     // Orientation: qw, qx, qy, qz
