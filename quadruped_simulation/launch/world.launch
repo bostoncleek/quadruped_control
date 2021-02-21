@@ -1,4 +1,11 @@
 <launch>
+  <!-- Only used for the Robot State Publisher -->
+  <param name="robot_description"
+     command="$(find xacro)/xacro $(find mit_cheetah_description)/urdf/cheetah.urdf.xacro"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <!-- <node pkg="quadruped_simulation" type="drake_visualizer" name="drake_visualizer"/> -->
 
   <node pkg="quadruped_simulation" type="drake_interface" name="drake_interface" output="screen">
     <rosparam command="load" file="$(find quadruped_simulation)/config/physics.yaml" />

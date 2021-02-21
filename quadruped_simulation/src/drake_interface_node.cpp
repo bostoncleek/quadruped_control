@@ -12,6 +12,9 @@
  *
  */
 
+// TODO: publish reaction forces at feet and joint torques
+
+
 // C++
 #include <memory>
 #include <filesystem>
@@ -20,14 +23,15 @@
 #include <ros/ros.h>
 #include <sensor_msgs/JointState.h>
 #include <quadruped_msgs/CoMState.h>
+#include <quadruped_msgs/JointTorqueCmd.h>
 
-// Drkae
+// Drake
 #include <drake/systems/framework/framework_common.h>
 #include <drake/systems/framework/vector_base.h>
 #include <drake/common/find_resource.h>
 #include <drake/geometry/drake_visualizer.h>
 #include <drake/geometry/scene_graph.h>
-#include <drake/lcm/drake_lcm.h>
+// #include <drake/lcm/drake_lcm.h>
 #include <drake/multibody/parsing/parser.h>
 #include <drake/multibody/plant/contact_results_to_lcm.h>
 #include <drake/systems/analysis/simulator.h>
@@ -45,7 +49,43 @@ using Eigen::Translation3d;
 using Eigen::Vector3d;
 using Eigen::VectorXd;
 
-const std::string LOGNAME = "drake_interface";
+const static std::string LOGNAME = "drake_interface";
+static bool joint_cmd_received = false;
+
+// The joint torque map, maps joint actuator names to index in control vector.
+static std::map<std::string, unsigned int> joint_torque_map;
+// Control vector
+static VectorXd tau;
+
+
+void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
+{
+  joint_cmd_received = true;
+
+  if (msg->actuator_name.size() != msg->torque.size())
+  {
+    ROS_ERROR_STREAM_NAMED(LOGNAME, "The number of joint torque commands do not match "
+                                    "the number of joint actuator in control message");
+    return;
+  }
+
+  for (unsigned int i = 0; i < msg->actuator_name.size(); i++)
+  {
+    try
+    {
+      const auto index = joint_torque_map.at(msg->actuator_name.at(i));
+      tau(index) = msg->torque.at(i);
+
+      std::cout << msg->actuator_name.at(i) << " " << index << std::endl;
+    }
+    catch (const std::out_of_range& e)
+    {
+      ROS_ERROR_STREAM_NAMED(LOGNAME, "Actuator name does not exist in joint torque map");
+    }
+  }
+
+  std::cout << "Tau: \n" << tau << std::endl;
+}
 
 
 int main(int argc, char** argv)
@@ -57,6 +97,8 @@ int main(int argc, char** argv)
 
   ros::Publisher joint_pub = nh.advertise<sensor_msgs::JointState>("joint_states", 1);
   ros::Publisher com_pub = nh.advertise<quadruped_msgs::CoMState>("com_state", 1);
+  ros::Subscriber joint_torque_sub =
+      nh.subscribe("joint_torque_cmd", 1, jointTorqueCallback);
 
   // // Use 1 thread
   // ros::AsyncSpinner spinner(1);
@@ -72,7 +114,7 @@ int main(int argc, char** argv)
   const auto static_friction = pnh.param<double>("static_friction", 1.0);
   const auto dynamic_friction = pnh.param<double>("dynamic_friction", 1.0);
   const auto penetration_allowance = pnh.param<double>("penetration_allowance", 0.001);
-  const auto stiction_tolerance = pnh.param<double>("stiction_tolerance", 0.001);
+  // const auto stiction_tolerance = pnh.param<double>("stiction_tolerance", 0.001);
   const auto real_time_rate = pnh.param<double>("real_time_rate", 1.0);
 
   // Robot initial pose
@@ -86,15 +128,40 @@ int main(int argc, char** argv)
   const auto base_link_name = pnh.param<std::string>("links/base_link", "base_link");
 
   // Robot initial joints
+  const auto num_joints =
+      static_cast<unsigned int>(pnh.param<int>("joints/num_joints", 0));
   std::vector<std::string> joint_names;
+  std::vector<std::string> joint_actuator_names;
   std::vector<double> init_joint_positions;
+  std::vector<double> init_joint_torques;
   pnh.getParam("joints/joint_names", joint_names);
+  pnh.getParam("joints/joint_actuator_names", joint_actuator_names);
   pnh.getParam("joints/joint_positions", init_joint_positions);
+  pnh.getParam("joints/joint_torques", init_joint_torques);
 
-  const unsigned int num_joints = joint_names.size();
-  if (joint_names.size() != init_joint_positions.size())
+  if ((num_joints != joint_names.size()) || (num_joints != joint_actuator_names.size()) ||
+      (num_joints != init_joint_positions.size()) ||
+      (num_joints != init_joint_torques.size()))
   {
-    ROS_ERROR_STREAM_NAMED(LOGNAME, "Number of initial joint positions does not match the number of joints");
+    ROS_ERROR_STREAM_NAMED(LOGNAME,
+                           "Invalid joint configuration. Num(joints) = Num(joint motors) "
+                           "= Num(joint positions) = Num(joint torques)");
+
+    ROS_ERROR_NAMED(LOGNAME,
+                    "Num(joints): %lu, Num(joint motors): %lu, Num(joint positions): "
+                    "%lu, Num(joint torques): %lu ",
+                    joint_names.size(), joint_actuator_names.size(),
+                    init_joint_positions.size(), init_joint_torques.size());
+  }
+
+  for (unsigned int i = 0; i < num_joints; i++)
+  {
+    joint_torque_map.emplace(std::make_pair(joint_actuator_names.at(i), i));
+  }
+
+  for (const auto& [key, value] : joint_torque_map)
+  {
+    std::cout << key << " " << value << std::endl;
   }
 
   // Place base_link relative to world_body
@@ -170,23 +237,30 @@ int main(int argc, char** argv)
   ROS_INFO_NAMED(LOGNAME, "Number of generalized positions: %i", plant.num_positions());
   ROS_INFO_NAMED(LOGNAME, "Number of generalized velocities: %i", plant.num_velocities());
 
+  // Acuator insput port
   const drake::systems::InputPort<double>& input_port = plant.get_actuation_input_port();
   // const drake::systems::OutputPort<double>& output_port = plant.get_state_output_port();
   // ROS_INFO_NAMED(LOGNAME, "Input port name: %s", input_port.get_name().c_str());
   // ROS_INFO_NAMED(LOGNAME, "Output port name: %s", output_port.get_name().c_str());
 
-  // Set initial positons   
-  // TODO: set init COM pose here too?
-  Eigen::VectorBlock<drake::VectorX<double>> state_vec = plant_context.get_mutable_discrete_state(0).get_mutable_value();
-  const VectorXd init_joint_vec = Eigen::Map<VectorXd, Eigen::Unaligned>(init_joint_positions.data(), init_joint_positions.size());
-  state_vec.segment(7, init_joint_positions.size()) = init_joint_vec;
-
-  // Set torque input to zeros
-  VectorXd tau = VectorXd::Zero(plant.num_actuated_dofs());
-  // VectorXd tau = VectorXd::Constant(plant.num_actuated_dofs(), 0.1);
+  // Set initial joint torque
+  // VectorXd tau = VectorXd::Zero(num_joints);
+  tau = Eigen::Map<VectorXd, Eigen::Unaligned>(init_joint_torques.data(),
+                                               init_joint_torques.size());
 
   input_port.FixValue(&plant_context, tau);
 
+  // Set initial positons
+  // TODO: set init COM pose here too?
+  Eigen::VectorBlock<drake::VectorX<double>> state_vec =
+      plant_context.get_mutable_discrete_state(0).get_mutable_value();
+
+  const VectorXd init_joint_vec = Eigen::Map<VectorXd, Eigen::Unaligned>(
+      init_joint_positions.data(), init_joint_positions.size());
+
+  state_vec.segment(7, init_joint_positions.size()) = init_joint_vec;
+
+  // Set pose of base_link in the world
   const drake::multibody::Body<double>& base_link = plant.GetBodyByName(base_link_name);
   plant.SetFreeBodyPoseInWorldFrame(&plant_context, base_link, Twb);
 
@@ -200,32 +274,42 @@ int main(int argc, char** argv)
   auto current_time = 0.0;
   while (nh.ok())
   {
-    // if (current_time > 1.0)
-    // {
-    //   // ROS_INFO_NAMED(LOGNAME, "Drive");
+    ros::spinOnce();
 
-    //   tau(0) = 0.06;
-    //   tau(1) = 0.06;
-    //   input_port.FixValue(&plant_context, tau);
-    // }
-
-    // TODO: which context to use?
+    // TODO: which context to use? I think this is required to get the current trajectory context.
     const drake::systems::Context<double>& context = simulator.get_context();
 
-    // states 
+    // if (current_time > 2.0)
+    // {
+    //   ROS_INFO_NAMED(LOGNAME, "Drive");
+
+    //   // tau(0) = -100.;
+    //   // input_port.FixValue(&plant_context, tau);
+    // }
+
+    if (joint_cmd_received)
+    {
+      ROS_INFO_STREAM_NAMED(LOGNAME, "Cmd received");
+      input_port.FixValue(&plant_context, tau);
+      joint_cmd_received = false;
+    }
+
+
+    // states
     // Orientation: qw, qx, qy, qz
     // Position: x, y, z
-    // Joint positions 
-    // Angular velocity: rdot, pdot, ydot 
-    // Velocity vector: xdot, ydot, zdot 
-    // Joint velocity 
+    // Joint positions
+    // Angular velocity: rdot, pdot, ydot
+    // Velocity vector: xdot, ydot, zdot
+    // Joint velocity
     const drake::VectorX<double>& state_vector =
         context.get_discrete_state_vector().CopyToVector();
 
     ////////////////
     // Joint states
     std::vector<double> joint_positions(num_joints);
-    VectorXd::Map(&joint_positions.at(0), num_joints) = state_vector.segment(7, num_joints);
+    VectorXd::Map(&joint_positions.at(0), num_joints) =
+        state_vector.segment(7, num_joints);
 
     std::vector<double> joint_velocities(num_joints);
     VectorXd::Map(&joint_velocities.at(0), num_joints) = state_vector.tail(num_joints);
@@ -247,7 +331,7 @@ int main(int argc, char** argv)
     com_msg.pose.orientation.x = state_vector(1);
     com_msg.pose.orientation.y = state_vector(2);
     com_msg.pose.orientation.z = state_vector(3);
-    
+
     com_msg.pose.position.x = state_vector(4);
     com_msg.pose.position.y = state_vector(5);
     com_msg.pose.position.z = state_vector(6);
@@ -262,21 +346,18 @@ int main(int argc, char** argv)
 
     com_pub.publish(com_msg);
 
+    // const drake::multibody::Joint<double>& RL_hip_joint =
+    // plant.GetJointByName("RL_hip_joint"); const drake::multibody::Joint<double>&
+    // FL_hip_joint = plant.GetJointByName("FL_hip_joint"); const
+    // drake::multibody::Joint<double>& RR_hip_joint =
+    // plant.GetJointByName("RR_hip_joint"); const drake::multibody::Joint<double>&
+    // FR_hip_joint = plant.GetJointByName("FR_hip_joint");
 
-    // const VectorXd actual_pos = plant.GetPositions(plant_context);
-    // std::cout << "actual pos: \n" << actual_pos << std::endl;
-    // std::cout << "state_vector: \n" << state_vector << std::endl;
-
-    // const drake::multibody::Joint<double>& RL_hip_joint = plant.GetJointByName("RL_hip_joint");
-    // const drake::multibody::Joint<double>& FL_hip_joint = plant.GetJointByName("FL_hip_joint");
-    // const drake::multibody::Joint<double>& RR_hip_joint = plant.GetJointByName("RR_hip_joint");
-    // const drake::multibody::Joint<double>& FR_hip_joint = plant.GetJointByName("FR_hip_joint");
-    
     // const double& RL_hip_joint_velocity = RL_hip_joint.GetOneVelocity(context);
     // const double& FL_hip_joint_velocity = FL_hip_joint.GetOneVelocity(context);
     // const double& RR_hip_joint_velocity = RR_hip_joint.GetOneVelocity(context);
     // const double& FR_hip_joint_velocity = FR_hip_joint.GetOneVelocity(context);
-    
+
     // std::cout << "Joint velocity test: \n";
     // std::cout << RL_hip_joint_velocity << "\n";
     // std::cout << FL_hip_joint_velocity << "\n";

@@ -1,0 +1,5 @@
+#!/bin/bash
+# export PATH=/opt/drake/bin:$PATH
+cd /opt/drake/bin
+./drake-visualizer
+exit 0
