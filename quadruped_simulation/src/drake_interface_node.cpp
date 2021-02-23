@@ -23,6 +23,8 @@
 #include <ros/ros.h>
 #include <std_srvs/Empty.h>
 #include <sensor_msgs/JointState.h>
+
+// Quadruped Control
 #include <quadruped_msgs/CoMState.h>
 #include <quadruped_msgs/JointTorqueCmd.h>
 
@@ -63,7 +65,6 @@ static VectorXd tau;
 void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
 {
   joint_cmd_received = true;
-
   if (msg->actuator_name.size() != msg->torque.size())
   {
     ROS_ERROR_STREAM_NAMED(LOGNAME, "The number of joint torque commands do not match "
@@ -77,7 +78,6 @@ void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
     {
       const auto index = joint_torque_map.at(msg->actuator_name.at(i));
       tau(index) = msg->torque.at(i);
-
       // std::cout << msg->actuator_name.at(i) << " " << index << std::endl;
     }
     catch (const std::out_of_range& e)
@@ -85,7 +85,6 @@ void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
       ROS_ERROR_STREAM_NAMED(LOGNAME, "Actuator name does not exist in joint torque map");
     }
   }
-
   // std::cout << "Tau: \n" << tau << std::endl;
 }
 
@@ -113,10 +112,8 @@ int main(int argc, char** argv)
 
   ros::ServiceServer start_server = nh.advertiseService("start_position", startConfigCallback);
 
-
-  // // Use 1 thread
-  // ros::AsyncSpinner spinner(1);
-  // spinner.start();
+  ros::AsyncSpinner spinner(1);
+  spinner.start();
 
   // Robot
   const auto urdf_path = pnh.param<std::string>("urdf_path", "../urdf/robot.urdf");
@@ -150,8 +147,8 @@ int main(int argc, char** argv)
   std::vector<double> init_joint_torques;
   pnh.getParam("joints/joint_names", joint_names);
   pnh.getParam("joints/joint_actuator_names", joint_actuator_names);
-  pnh.getParam("joints/joint_positions", init_joint_positions);
-  pnh.getParam("joints/joint_torques", init_joint_torques);
+  pnh.getParam("joints/init_joint_positions", init_joint_positions);
+  pnh.getParam("joints/init_joint_torques", init_joint_torques);
 
   if ((num_joints != joint_names.size()) || (num_joints != joint_actuator_names.size()) ||
       (num_joints != init_joint_positions.size()) ||
@@ -288,7 +285,7 @@ int main(int argc, char** argv)
   auto current_time = 0.0;
   while (nh.ok())
   {
-    ros::spinOnce();
+    // ros::spinOnce();
 
     // TODO: which context to use? I think this is required to get the current trajectory context.
     const drake::systems::Context<double>& context = simulator.get_context();
