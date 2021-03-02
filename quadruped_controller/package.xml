@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>quadruped_controller</name>
   <version>1.0.0</version>
   <description>Quadruped control architecture</description>
@@ -12,4 +12,6 @@
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_srvs</depend>
+
+  <exec_depend>quadruped_simulation</exec_depend>
 </package>

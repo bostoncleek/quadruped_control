@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10.2)
+cmake_minimum_required(VERSION 3.16.3)
 project(quadruped_controller)
 
 # add compile options
@@ -21,9 +21,20 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 find_package(Armadillo REQUIRED)
-# message(STATUS "Arma lib: "  ${ARMADILLO_LIBRARIES})
-# message(STATUS "Arma dirs: "  ${ARMADILLO_INCLUDE_DIRS})
+find_package(drake CONFIG REQUIRED PATHS /opt/drake)
+find_package(qpOASES MODULE REQUIRED)
+
+# message(STATUS "QP : " ${QPOASES_FOUND})
+# message(STATUS "QP lib: " ${qpOASES_LIBRARIES})
+# message(STATUS "QP include: " ${qpOASES_INCLUDE_DIRS})
+
+if (qpOASES_FOUND)
+  message(STATUS "Found qpOASES")
+else ()
+  message(ERROR "NO QP lib")
+endif ()
 
 ###################################
 ## catkin specific configuration ##
@@ -42,7 +53,9 @@ catkin_package(
   roscpp
   sensor_msgs
   std_srvs
- DEPENDS ARMADILLO
+ DEPENDS
+  ARMADILLO
+  drake
 )
 
 ###########
@@ -55,11 +68,13 @@ include_directories(
   include
   ${catkin_INCLUDE_DIRS}
   ${ARMADILLO_INCLUDE_DIRS}
+  ${qpOASES_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
-  src/${PROJECT_NAME}/pid_controller.cpp
+  src/${PROJECT_NAME}/joint_controller.cpp
+  src/${PROJECT_NAME}/math/rigid3d.cpp
 )
 
 ## Add cmake target dependencies of the library
@@ -71,21 +86,31 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(commander src/commander_node.cpp)
+add_executable(test_qp src/test_qp_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(commander ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(test_qp ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${ARMADILLO_LIBRARIES}
+  drake::drake
 )
 
 target_link_libraries(commander
   ${catkin_LIBRARIES}
   ${PROJECT_NAME}
   ${ARMADILLO_LIBRARIES}
+)
+
+target_link_libraries(test_qp
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+  ${ARMADILLO_LIBRARIES}
+  ${qpOASES_LIBRARIES}
 )
 
 #############
@@ -104,7 +129,7 @@ target_link_libraries(commander
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-install(TARGETS commander
+install(TARGETS commander test_qp
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
