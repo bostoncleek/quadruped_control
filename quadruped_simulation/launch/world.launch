@@ -5,8 +5,6 @@
 
   <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
 
-  <!-- <node pkg="quadruped_simulation" type="drake_visualizer" name="drake_visualizer"/> -->
-
   <node pkg="quadruped_simulation" type="drake_interface" name="drake_interface" output="screen">
     <rosparam command="load" file="$(find quadruped_simulation)/config/physics.yaml" />
     <rosparam command="load" file="$(find quadruped_simulation)/config/mit_cheetah_config.yaml" />

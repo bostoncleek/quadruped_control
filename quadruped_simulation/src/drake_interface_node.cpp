@@ -41,9 +41,8 @@
 #include <drake/multibody/plant/multibody_plant.h>
 #include <drake/systems/framework/diagram_builder.h>
 #include <drake/systems/controllers/pid_controller.h>
-#include <drake/systems/controllers/inverse_dynamics_controller.h>
+// #include <drake/systems/controllers/inverse_dynamics_controller.h>
 #include <drake/manipulation/util/robot_plan_utils.h>
-
 
 using drake::math::RigidTransformd;
 using drake::systems::VectorBase;
@@ -97,7 +96,6 @@ bool startConfigCallback(std_srvs::Empty::Request&, std_srvs::Empty::Response&)
 }
 
 
-
 int main(int argc, char** argv)
 {
   ROS_INFO_STREAM_NAMED(LOGNAME, "Starting drake interface node");
@@ -110,7 +108,8 @@ int main(int argc, char** argv)
   ros::Subscriber joint_torque_sub =
       nh.subscribe("joint_torque_cmd", 1, jointTorqueCallback);
 
-  ros::ServiceServer start_server = nh.advertiseService("start_position", startConfigCallback);
+  ros::ServiceServer start_server =
+      nh.advertiseService("start_position", startConfigCallback);
 
   ros::AsyncSpinner spinner(1);
   spinner.start();
@@ -300,14 +299,14 @@ int main(int argc, char** argv)
 
     if (start_config_received)
     {
-      // Reset initial joint positions 
+      // Reset initial joint positions
       Eigen::VectorBlock<drake::VectorX<double>> state_vec =
           plant_context.get_mutable_discrete_state(0).get_mutable_value();
       state_vec.segment(7, init_joint_positions.size()) = init_joint_vec;
 
       // Reset initial joint torques
       tau = Eigen::Map<VectorXd, Eigen::Unaligned>(init_joint_torques.data(),
-                                               init_joint_torques.size());
+                                                   init_joint_torques.size());
       input_port.FixValue(&plant_context, tau);
 
       // // Reset free body pose in world
