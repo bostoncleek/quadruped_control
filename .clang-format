@@ -23,10 +23,10 @@ ExperimentalAutoDetectBinPacking: false
 ObjCSpaceBeforeProtocolList: true
 Cpp11BracedListStyle: false
 
-AllowShortBlocksOnASingleLine: true
+AllowShortBlocksOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: None
+AllowShortFunctionsOnASingleLine: false
 AllowShortCaseLabelsOnASingleLine: false
 
 AlwaysBreakTemplateDeclarations: true
