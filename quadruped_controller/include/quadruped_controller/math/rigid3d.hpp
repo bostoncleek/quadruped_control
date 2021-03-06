@@ -9,6 +9,8 @@
 
 // C++
 #include <iosfwd>
+#include <tuple>
+
 // Drake
 #include <drake/math/rotation_matrix.h>
 #include <drake/math/rigid_transform.h>
@@ -20,6 +22,8 @@ namespace quadruped_controller
 {
 namespace rigid3d
 {
+using std::tuple;
+
 using arma::mat;
 using arma::vec;
 
@@ -36,6 +40,8 @@ using arma::vec;
 mat eigen_rotation_to_arma(const Eigen::MatrixXd& R_eigen);
 
 Eigen::MatrixXd arma_rotation_to_eigen(const mat& R_arma);
+
+mat skew_symmetric(const vec& x);
 
 
 class Rotation3d;
@@ -93,6 +99,10 @@ public:
   Rotation3d(const Quaternion& quaternion);
 
   Rotation3d(const mat& rotation_matrix);
+
+  tuple<vec, double> angleAxis() const;
+
+  vec angleAxisTotal() const;
 
   mat rotationMatrix() const
   {

@@ -45,6 +45,22 @@ Eigen::MatrixXd arma_rotation_to_eigen(const mat& R_arma)
 }
 
 
+mat skew_symmetric(const vec& x)
+{
+  mat skew(3, 3, arma::fill::zeros);
+  // upper
+  skew(0, 1) = -x(2);
+  skew(0, 2) = x(1);
+  skew(1, 2) = -x(0);
+  // lower
+  skew(1, 0) = x(2);
+  skew(2, 0) = -x(1);
+  skew(2, 1) = x(0);
+
+  return skew;
+}
+
+
 /////////////////////////////////////////////////////////
 // Quaternion
 Quaternion::Quaternion() : q_(1., 0., 0., 0.)
@@ -100,6 +116,22 @@ Rotation3d::Rotation3d(const Quaternion& quaternion) : R_(quaternion.data())
 Rotation3d::Rotation3d(const mat& rotation_matrix)
   : R_(arma_rotation_to_eigen(rotation_matrix))
 {
+}
+
+
+tuple<vec, double> Rotation3d::angleAxis() const
+{
+  const Eigen::AngleAxisd aa_eigen = R_.ToAngleAxis();
+  const vec axis = { aa_eigen.axis()(0), aa_eigen.axis()(1), aa_eigen.axis()(2) };
+  return { axis, aa_eigen.angle() };
+}
+
+
+vec Rotation3d::angleAxisTotal() const
+{
+  const Eigen::AngleAxisd aa_eigen = R_.ToAngleAxis();
+  const Eigen::Vector3d aa_tot_eigen = aa_eigen.axis() * aa_eigen.angle();
+  return { aa_tot_eigen(0), aa_tot_eigen(1), aa_tot_eigen(2) };
 }
 
 

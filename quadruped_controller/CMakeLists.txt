@@ -73,6 +73,7 @@ include_directories(
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
+  src/${PROJECT_NAME}/balance_controller.cpp
   src/${PROJECT_NAME}/joint_controller.cpp
   src/${PROJECT_NAME}/math/rigid3d.cpp
 )
@@ -97,6 +98,7 @@ add_dependencies(test_qp ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_T
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   ${ARMADILLO_LIBRARIES}
+  ${qpOASES_LIBRARIES}
   drake::drake
 )
 

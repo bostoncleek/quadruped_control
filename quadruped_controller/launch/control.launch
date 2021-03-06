@@ -1,0 +1,5 @@
+<launch> 
+  <node pkg="quadruped_controller" type="commander" name="commander" output="screen">
+    <rosparam command="load" file="$(find quadruped_simulation)/config/mit_cheetah_config.yaml" />
+  </node>
+</launch>
