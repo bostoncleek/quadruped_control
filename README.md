@@ -12,9 +12,6 @@ Based on ETH Zuirch robots HyQ and StarlETH and MIT cheetah.
 - [drake](https://github.com/RobotLocomotion/drake)
 - [qpOASES](https://github.com/coin-or/qpOASES)
 
-## Optional Dependencies 
-For improved performance in both Armadillo and qpOASES install first [OpenBlas](https://github.com/xianyi/OpenBLAS) and [LAPACK](https://github.com/Reference-LAPACK/lapack). See Armadillo's install [notes](http://arma.sourceforge.net/download.html).
-
 **Important**: The current version of qpOASES only creates a static library and will 
 cause Armadillo to segfault. The sagfault might be because qpOASES redefines internally some BLAS/LAPACK functions, and this can create problems if linking with another library that uses BLAS or LAPACK. For more info see [PR #108](https://github.com/coin-or/qpOASES/pull/108) and [PR #109](https://github.com/coin-or/qpOASES/pull/109).
 
@@ -27,6 +24,10 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__AVOID_LA_NAMING_CONFLICTS__")
 # Remove STATIC to build a shared library
 ADD_LIBRARY(qpOASES ${SRC})
 ```
+
+
+## Optional Dependencies 
+For improved performance in both Armadillo and qpOASES install first [OpenBlas](https://github.com/xianyi/OpenBLAS) and [LAPACK](https://github.com/Reference-LAPACK/lapack). See Armadillo's install [notes](http://arma.sourceforge.net/download.html).
 
 ## Dependency Versions Used 
 - OpenBlas 0.3.13 
