@@ -5,6 +5,7 @@
  * @brief Force balance controller
  */
 
+#include <ros/console.h>
 #include <quadruped_controller/balance_controller.hpp>
 
 /*
@@ -19,6 +20,8 @@ References:
 
 namespace quadruped_controller
 {
+static const std::string LOGGER = "Balance Controller";
+
 void copy_to_real_t(const vec& source, real_t* target)
 {
   for (unsigned int i = 0; i < source.size(); i++)
@@ -39,6 +42,18 @@ void copy_to_real_t(const mat& source, real_t* target)
       count++;
     }
   }
+}
+
+
+vec copy_from_real_t(const real_t* const source, unsigned int n_rows)
+{
+  vec target(n_rows);
+  for (unsigned int i = 0; i < n_rows; i++)
+  {
+    target(i) = source[i];
+  }
+
+  return target;
 }
 
 
@@ -70,13 +85,19 @@ BalanceController::BalanceController(double mu, double mass, double fzmin, doubl
   , kd_p_(kd_p)
   , kp_w_(kp_w)
   , kd_w_(kd_w)
-  , QPSolver_(NUM_VARIABLES_QP, NUM_CONSTRAINTS_QP)
+  , QPSolver_(num_variables_qp_, num_constraints_qp_)
+  , nWSR_(100)
   , fzmin_(fzmin)
   , fzmax_(fzmax)
-  , qp_initialized_(false)
   , S_(S)
-  , C_(NUM_CONSTRAINTS_QP, NUM_VARIABLES_QP, arma::fill::zeros)
+  , C_(num_constraints_qp_, num_variables_qp_, arma::fill::zeros)
+  , cpu_time_(0.001)
 {
+  // QPSolver_.setPrintLevel(qpOASES::PL_NONE);
+  // // Options options;
+  // // options.printLevel = qpOASES::PL_NONE;
+  // // options.PrintLevel = qpOASES::PL_DEBUG_ITER;
+  // // QPSolver_.setOptions( options );
   initConstraints();
 }
 
@@ -85,7 +106,9 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
                                const vec& x, const vec& xdot, const vec& w,
                                const vec& x_d, const vec& xdot_d, const vec& w_d)
 {
-  // IMPORTANT: Ground reaction forces are in world frame
+  // IMPORTANT: Ground reaction forces from QP solver are in world frame
+  vec fw(num_variables_qp_, arma::fill::zeros);
+
   // PD control on COM position and orientation
   // [R1] Eq(3)
   const vec xddot_d = kp_p_ % (x_d - x) + kd_p_ % (xdot_d - xdot);
@@ -101,6 +124,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   const mat A_dyn = std::get<mat>(srb_dyn);
   const vec b_dyn = std::get<vec>(srb_dyn);
 
+  // TODO: Add regularization term Eq(6) alpha*f.T*W*f
   // [R1] Convert Eq(6) to QP standard form 1/2*x.T*Q*x + x.T*c
   // Q = 2*A.T*S*A (12x12)
   // c = -2*A.T*S*b (12x1)
@@ -111,36 +135,75 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
 
   copy_to_real_t(Q, qp_Q_);
   copy_to_real_t(c, qp_c_);
-  // print_real_t(qp_H_, NUM_VARIABLES_QP, NUM_VARIABLES_QP);
-  // print_real_t(qp_g_, NUM_VARIABLES_QP, 1);
+  // print_real_t(qp_H_, num_variables_qp_, num_variables_qp_);
+  // print_real_t(qp_g_, num_variables_qp_, 1);
 
-  int nWSR = 100;
   real_t* qp_lb = nullptr;
   real_t* qp_ub = nullptr;
 
-  // See Init Homotopy pg 31
-  const returnValue retVal =
-      QPSolver_.init(qp_Q_, qp_c_, qp_C_, qp_lb, qp_ub, qp_lbC_, qp_ubC_, nWSR);
+  // Primal solution
+  real_t qp_xOpt[num_variables_qp_];
 
-  real_t xOpt[NUM_VARIABLES_QP];
-  QPSolver_.getPrimalSolution(xOpt);
+  // Will update based on acutal
+  int nWSR_acutal = nWSR_;
+  real_t cpu_time_actual = cpu_time_;
 
-  print_real_t(xOpt, NUM_VARIABLES_QP, 1, "xOpt");
+  // TODO: See Init Homotopy pg 31
+  // TODO: Add initial guess to hotstart
+  if (!QPSolver_.isInitialised())
+  {
+    ROS_INFO_STREAM_NAMED(LOGGER, "Initializing Balance Controller QP Solver");
+    const returnValue ret_val = QPSolver_.init(qp_Q_, qp_c_, qp_C_, qp_lb, qp_ub, qp_lbC_,
+                                               qp_ubC_, nWSR_acutal, &cpu_time_actual);
 
-  // if (!qp_initialized_)
-  // {
-  //   qp_initialized_ = true;
-  // }
+    if (ret_val != qpOASES::SUCCESSFUL_RETURN)
+    {
+      ROS_ERROR_STREAM_NAMED(LOGGER, "Failed to initialize Balance Controller QP Solver");
+      return fw;
+    }
+  }
 
-  // else
-  // {
-  //   // use hotstart
-  // }
+  else
+  {
+    ROS_INFO_STREAM_NAMED(LOGGER, "Hotstart Balance Controller QP Solver");
+    const returnValue ret_val =
+        QPSolver_.hotstart(qp_Q_, qp_c_, qp_C_, qp_lb, qp_ub, qp_lbC_, qp_ubC_,
+                           nWSR_acutal, &cpu_time_actual);
 
+    if (ret_val != qpOASES::SUCCESSFUL_RETURN)
+    {
+      ROS_ERROR_STREAM_NAMED(LOGGER, "Failed to hotstart Balance Controller QP Solver");
+      return fw;
+    }
+  }
 
-  // Ground reaction forces in body frame
-  vec fb(NUM_VARIABLES_QP, arma::fill::zeros);
-  return fb;
+  // std::cout << "CPU time: " << cpu_time_actual << " (s)" << std::endl;
+
+  if (QPSolver_.isSolved())
+  {
+    QPSolver_.getPrimalSolution(qp_xOpt);
+    fw = copy_from_real_t(qp_xOpt, num_variables_qp_);
+  }
+
+  else
+  {
+    ROS_ERROR_STREAM_NAMED(LOGGER, "Balance Controller QP Solver Failed");
+    return fw;
+  }
+
+  fw.print("GRF in World");
+  // print_real_t(qp_xOpt, num_variables_qp_, 1, "qp_xOpt");
+
+  // Negate force directions and transform into body frame
+  const mat Rbw = Rwb.t();
+  vec fb(num_variables_qp_);
+
+  fb.rows(0, 2) = Rbw * fw.rows(0, 2);
+  fb.rows(3, 5) = Rbw * fw.rows(3, 5);
+  fb.rows(6, 8) = Rbw * fw.rows(6, 8);
+  fb.rows(9, 11) = Rbw * fw.rows(9, 11);
+
+  return -1.0 * fb;
 }
 
 
@@ -152,9 +215,8 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
 
   // Moment of Interia in world frame
   const mat Iw = Rwb * Ib_ * Rwb.t();
-  // Iw.print("Iw");
 
-  mat A(NUM_EQUATIONS_QP, NUM_VARIABLES_QP, arma::fill::zeros);
+  mat A(num_equations_qp_, num_variables_qp_, arma::fill::zeros);
   A.submat(0, 0, 2, 2) = eye(3, 3);
   A.submat(0, 3, 2, 5) = eye(3, 3);
   A.submat(0, 6, 2, 8) = eye(3, 3);
@@ -165,16 +227,17 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
   A.submat(3, 6, 5, 8) = skew_symmetric(x_ft_p.col(2));
   A.submat(3, 9, 5, 11) = skew_symmetric(x_ft_p.col(3));
 
-  // A.print("Euler RBD: A");
-
-  vec b(NUM_EQUATIONS_QP, arma::fill::zeros);
+  vec b(num_equations_qp_, arma::fill::zeros);
   b.rows(0, 2) = mass_ * (xddot_d + g_);
   b.rows(3, 5) = Iw * wdot_d;
 
+  // Iw.print("Iw");
+  // A.print("Euler RBD: A");
   // b.print("Euler RBD: b");
 
   return std::make_tuple(A, b);
 }
+
 
 void BalanceController::initConstraints()
 {
@@ -182,26 +245,28 @@ void BalanceController::initConstraints()
   const auto lower = -1000000.0;
 
   // [R1] Eq(7) and Eq(8)
-  // Constraint per foot
+  // Friction cone constraint per foot
   const mat Ci = { { 1.0, 0.0, -mu_ },
                    { 0.0, 1.0, -mu_ },
                    { 0.0, 1.0, mu_ },
                    { 1.0, 0.0, mu_ },
                    { 0.0, 0.0, 1.0 } };
 
-  // Lower and upper limits per foot
+  // Friction cone lower and upper limits per foot
   const vec dli = { lower, lower, 0.0, 0.0, fzmin_ };
   const vec dui = { 0.0, 0.0, upper, upper, fzmax_ };
 
   // TODO: This will need to change when some feet
   //       are not in constact with the ground.
+  // Constraint matrix
   C_.submat(0, 0, 4, 2) = Ci;
   C_.submat(5, 3, 9, 5) = Ci;
   C_.submat(10, 6, 14, 8) = Ci;
   C_.submat(15, 9, 19, 11) = Ci;
 
-  vec lbC(NUM_CONSTRAINTS_QP);
-  vec ubC(NUM_CONSTRAINTS_QP);
+  // Lowwer and upper bounds on constraint matrix
+  vec lbC(num_constraints_qp_);
+  vec ubC(num_constraints_qp_);
 
   lbC.rows(0, 4) = dli;
   lbC.rows(5, 9) = dli;
@@ -221,9 +286,9 @@ void BalanceController::initConstraints()
   // lbC.print("lbC");
   // ubC.print("ubC");
 
-  // print_real_t(qp_C_, NUM_CONSTRAINTS_QP, NUM_VARIABLES_QP);
-  // print_real_t(qp_lbC_, NUM_CONSTRAINTS_QP, 1);
-  // print_real_t(qp_ubC_, NUM_CONSTRAINTS_QP, 1);
+  // print_real_t(qp_C_, num_constraints_qp_, num_variables_qp_);
+  // print_real_t(qp_lbC_, num_constraints_qp_, 1);
+  // print_real_t(qp_ubC_, num_constraints_qp_, 1);
 }
 
 

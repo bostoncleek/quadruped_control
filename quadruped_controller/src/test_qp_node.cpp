@@ -46,7 +46,7 @@ int main(int argc, char** argv)
   const vec kd_w = kd_p;
 
   // Rotations from world to body
-  Quaternion qwb_d(0.966, 0., 0., 0.259);  // desired
+  Quaternion qwb_d;  //(0.966, 0., 0., 0.259);  // desired
   Rotation3d Rwb_d(qwb_d);
 
   Quaternion qwb;  // actual
@@ -57,7 +57,7 @@ int main(int argc, char** argv)
   vec xdot(3, arma::fill::zeros);
   vec w(3, arma::fill::zeros);
 
-  vec x_d = { 0., 0., 0.1 };
+  vec x_d = { 0., 0., 0.2 };
   vec xdot_d(3, arma::fill::zeros);
   vec w_d(3, arma::fill::zeros);
 
@@ -88,66 +88,17 @@ int main(int argc, char** argv)
   BalanceController balance_controller(mu, mass, fzmin, fzmax, Ib, S, kp_p, kd_p, kp_w,
                                        kd_w);
 
-  balance_controller.control(ft_p, Rwb.rotationMatrix(), Rwb_d.rotationMatrix(), x, xdot,
-                             w, x_d, xdot_d, w_d);
+  vec fb1 = balance_controller.control(ft_p, Rwb.rotationMatrix(), Rwb_d.rotationMatrix(),
+                                       x, xdot, w, x_d, xdot_d, w_d);
 
+  fb1.print("fb1");
 
-  // ///////////////////////////////
-  // // Setup QP
-  // int nWSR = 100;  // max working set recalculations
-  // int nV = 12;     // variables
-  // // int nC = 3; // constraints
+  x_d = { 0., 0., 0.1 };
 
-  // mat Q = 2.0 * A.t() * A;
-  // vec c = -2.0 * A.t() * b;
+  vec fb2 = balance_controller.control(ft_p, Rwb.rotationMatrix(), Rwb_d.rotationMatrix(),
+                                       x, xdot, w, x_d, xdot_d, w_d);
 
-  // vec lb(12, arma::fill::ones);
-  // vec ub(12, arma::fill::ones);
-  // lb *= 2.;
-  // ub *= 100.;
-
-  // // row wise matrix
-  // real_t qp_Q[12 * 12];
-  // real_t qp_c[12];
-
-  // copy_to_real_t(Q, qp_Q);
-  // copy_to_real_t(c, qp_c);
-
-  // // print_real_t(qp_Q, 12, 12, "qp_Q:");
-  // // print_real_t(qp_c, 12, 1, "qp_c:");
-
-  // real_t qp_lb[12];
-  // real_t qp_ub[12];
-
-  // copy_to_real_t(lb, qp_lb);
-  // copy_to_real_t(ub, qp_ub);
-
-  // // real_t* lbA = nullptr;
-  // // real_t* ubA = nullptr;
-
-  // QProblemB problem(nV);
-
-  // // Options options;
-  // // options.printLevel = qpOASES::PL_NONE;
-  // // // options.PrintLevel = qpOASES::PL_DEBUG_ITER;
-  // // problem.setOptions( options );
-
-  // // returnValue retVal = problem.init( H, g, A, lb, ub, lbA, ubA, nWSR );
-  // returnValue retVal = problem.init(qp_Q, qp_c, qp_lb, qp_ub, nWSR);
-  // std::cout << "Return value from init: " << retVal << "\n";
-
-  // real_t xOpt[12];
-  // // // real_t yOpt[2+1];
-  // // // real_t cost = problem.getObjVal();
-  // problem.getPrimalSolution(xOpt);
-  // // // problem.getDualSolution( yOpt );
-
-
-  // print_real_t(xOpt, 12, 1, "xOpt:");
-
-
-  // problem.printOptions();
-
+  fb2.print("fb2");
 
   return 0;
 }
