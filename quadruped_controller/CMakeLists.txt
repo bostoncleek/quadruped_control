@@ -30,11 +30,11 @@ find_package(qpOASES MODULE REQUIRED)
 # message(STATUS "QP lib: " ${qpOASES_LIBRARIES})
 # message(STATUS "QP include: " ${qpOASES_INCLUDE_DIRS})
 
-if (qpOASES_FOUND)
-  message(STATUS "Found qpOASES")
-else ()
-  message(ERROR "NO QP lib")
-endif ()
+# if (qpOASES_FOUND)
+#   message(STATUS "Found qpOASES")
+# else ()
+#   message(ERROR "NO QP lib")
+# endif ()
 
 ###################################
 ## catkin specific configuration ##
@@ -56,6 +56,7 @@ catkin_package(
  DEPENDS
   ARMADILLO
   drake
+  qpOASES
 )
 
 ###########
@@ -97,8 +98,8 @@ add_dependencies(test_qp ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_T
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
-  ${ARMADILLO_LIBRARIES}
   ${qpOASES_LIBRARIES}
+  ${ARMADILLO_LIBRARIES}
   drake::drake
 )
 
@@ -112,7 +113,7 @@ target_link_libraries(test_qp
   ${catkin_LIBRARIES}
   ${PROJECT_NAME}
   ${ARMADILLO_LIBRARIES}
-  ${qpOASES_LIBRARIES}
+  # ${qpOASES_LIBRARIES}
 )
 
 #############

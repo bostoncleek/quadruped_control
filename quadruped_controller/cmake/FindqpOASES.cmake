@@ -36,6 +36,7 @@ find_path(qpOASES_INCLUDEDIR
           HINTS "${qpOASES_SOURCE_DIR}"
                 ENV qpOASES_SOURCE_DIR
           PATH_SUFFIXES include)
+          
 find_library(qpOASES_LIB
              NAMES qpOASES
              HINTS "${qpOASES_BINARY_DIR}"
