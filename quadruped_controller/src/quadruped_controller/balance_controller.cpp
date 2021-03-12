@@ -93,7 +93,8 @@ BalanceController::BalanceController(double mu, double mass, double fzmin, doubl
   , C_(num_constraints_qp_, num_variables_qp_, arma::fill::zeros)
   , cpu_time_(0.001)
 {
-  // QPSolver_.setPrintLevel(qpOASES::PL_NONE);
+  // NO prints
+  QPSolver_.setPrintLevel(qpOASES::PL_NONE);
   // // Options options;
   // // options.printLevel = qpOASES::PL_NONE;
   // // options.PrintLevel = qpOASES::PL_DEBUG_ITER;
@@ -119,7 +120,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   const vec wdot_d = kp_w_ % R_error.angleAxisTotal() + kd_w_ % (w_d - w);
   // wdot_d.print("wdot_d");
 
-  // [R1] Eq(5) Linear Euler's single rigid boyd dynamics
+  // [R1] Eq(5) Linear Newton-Euler single rigid body dynamics
   const auto srb_dyn = dynamics(ft_p, Rwb, x, xddot_d, wdot_d);
   const mat A_dyn = std::get<mat>(srb_dyn);
   const vec b_dyn = std::get<vec>(srb_dyn);
@@ -191,7 +192,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
     return fw;
   }
 
-  fw.print("GRF in World");
+  // fw.print("GRF in World");
   // print_real_t(qp_xOpt, num_variables_qp_, 1, "qp_xOpt");
 
   // Negate force directions and transform into body frame
