@@ -76,6 +76,7 @@ include_directories(
 add_library(${PROJECT_NAME}
   src/${PROJECT_NAME}/balance_controller.cpp
   src/${PROJECT_NAME}/joint_controller.cpp
+  src/${PROJECT_NAME}/kinematics.cpp
   src/${PROJECT_NAME}/math/rigid3d.cpp
 )
 
