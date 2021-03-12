@@ -1,6 +1,12 @@
 # Quadruped Control 
-Based on ETH Zuirch robots HyQ and StarlETH and MIT cheetah. 
+Based on ETH Zuirch StarlETH, IIT HyQ and MIT cheetah. 
 
+Currently the robot can transition from start to standing and balance using a ground
+reaction force controller formulated as a QP. 
+
+<p align="center">
+  <img src="quadruped_controller/media/cheetah_standup.gif" width="500" height="300"/>
+</p>
 
 # Development Environment 
 - Ubunut 20.04 
