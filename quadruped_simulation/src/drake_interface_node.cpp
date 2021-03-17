@@ -398,6 +398,6 @@ int main(int argc, char** argv)
     current_time += viz_time_step;
   }
 
-  ros::shutdown();
+  ros::waitForShutdown();
   return 0;
 }
