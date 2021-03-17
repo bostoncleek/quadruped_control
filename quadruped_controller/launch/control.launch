@@ -2,4 +2,12 @@
   <node pkg="quadruped_controller" type="commander" name="commander" output="screen">
     <rosparam command="load" file="$(find quadruped_simulation)/config/mit_cheetah_config.yaml" />
   </node>
+
+  <group ns="bluetooth_teleop">
+    <rosparam command="load" file="$(find quadruped_controller)/config/teleop_ps4.yaml"/>
+    <node pkg="joy" type="joy_node" name="joy_node"/>
+    <node pkg="teleop_twist_joy" type="teleop_node" name="teleop_twist_joy">
+      <remap from="cmd_vel" to="/cmd_vel"/>
+    </node>
+  </group>
 </launch>
