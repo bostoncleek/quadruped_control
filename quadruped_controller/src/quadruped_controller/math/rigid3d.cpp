@@ -11,6 +11,7 @@
 
 // Quadruped Control
 #include <quadruped_controller/math/rigid3d.hpp>
+#include <quadruped_controller/math/numerics.hpp>
 
 namespace quadruped_controller
 {
@@ -131,7 +132,15 @@ vec3 Quaternion::eulerAngles() const
 
 bool Quaternion::isUnit() const
 {
-  return std::sqrt(q_.x() * q_.x() + q_.y() * q_.y() + q_.z() * q_.z() + q_.w() * q_.w());
+  const auto norm =
+     std::sqrt(q_.x() * q_.x() + q_.y() * q_.y() + q_.z() * q_.z() + q_.w() * q_.w();
+     
+  if (almost_equal(norm, 1.0))
+  {
+    return true;
+  }
+  
+  return false;
 }
 
 
