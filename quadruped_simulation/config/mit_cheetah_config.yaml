@@ -38,19 +38,25 @@ joints:
   # Maps to joint actuator names 
   init_joint_torques: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-  # # Maps to joint names
-  # stance_joint_positions: [0.0, 0.0, 0.0, 0.0, 0.92, 0.92, 0.92, 0.92, -1.91, -1.91, -1.91, -1.91]
-
-  # # Maps to joint names
-  # stance_joint_velocities: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-
-# kp/kd: hip, thigh, calf
-joint_control:
-  # kp: [20.0, 10.0, 10.0]
-  # kd: [0.0, 0.0, 0.0]
-
-  # tau_ff: [0.5, 0.5, 0.5]
-
+# s_diagonal: diagonal weights on least squares (Ax-b)*S*(Ax-b)
+# w_diagonal: diagonal weight on forces in fT*W*f in format f = [RL, FL, RR, FR] (fx,fy,fz)
+# kff: feed forward gain on [vx_d, vy_d, m*g, roll_dot, pitch_dot, yaw_dot]
+# kp_p: COM position Kp
+# kp_w: COM orientation Kp
+# kd_p: COM linear velocity Kd
+# kd_w: COM angular velocity Kd
+control:
+  frequency: 100.0 # Hz
   torque_min: -20.0
   torque_max: 20.0
 
+  # Standing 
+  s_diagonal: [1.0, 1.0, 1.0, 10.0, 10.0, 5.0]
+  w_diagonal: [0.00001]
+  
+  kff: [0.0, 0.0, 0.20, 0.0, 0.0, 0.0]
+  kp_p: [100.0, 100.0, 150.0]
+  kp_w: [3000.0, 3000.0, 3000.0]
+
+  kd_p: [50.0, 50.0, 50.0]
+  kd_w: [250.0, 250.0, 250.0]
