@@ -93,12 +93,12 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(commander src/commander_node.cpp)
-add_executable(test_qp src/test_qp_node.cpp)
+# add_executable(test_qp src/test_qp_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(commander ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(test_qp ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(test_qp ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
@@ -114,12 +114,12 @@ target_link_libraries(commander
   ${ARMADILLO_LIBRARIES}
 )
 
-target_link_libraries(test_qp
-  ${catkin_LIBRARIES}
-  ${PROJECT_NAME}
-  ${ARMADILLO_LIBRARIES}
-  # ${qpOASES_LIBRARIES}
-)
+# target_link_libraries(test_qp
+#   ${catkin_LIBRARIES}
+#   ${PROJECT_NAME}
+#   ${ARMADILLO_LIBRARIES}
+#   # ${qpOASES_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -137,7 +137,7 @@ target_link_libraries(test_qp
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-install(TARGETS commander test_qp
+install(TARGETS commander
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
