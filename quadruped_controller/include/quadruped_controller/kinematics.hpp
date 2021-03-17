@@ -92,8 +92,5 @@ private:
   // Map leg name to  leg link config/translation base to hip
   map<string, std::pair<vec, vec>> link_map_;
 };
-
-
 }  // namespace quadruped_controller
-
 #endif
