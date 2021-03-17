@@ -79,23 +79,35 @@ mat skew_symmetric(const vec3& x)
 
 /////////////////////////////////////////////////////////
 // Quaternion
-Quaternion::Quaternion() : q_(1., 0., 0., 0.) {}
+Quaternion::Quaternion() : q_(1., 0., 0., 0.)
+{
+}
 
 
-Quaternion::Quaternion(double qw, double qx, double qy, double qz) : q_(qw, qx, qy, qz) {}
+Quaternion::Quaternion(double qw, double qx, double qy, double qz) : q_(qw, qx, qy, qz)
+{
+}
 
 
-Quaternion::Quaternion(const Eigen::Quaterniond& q) : q_(q) {}
+Quaternion::Quaternion(const Eigen::Quaterniond& q) : q_(q)
+{
+}
 
 
-Quaternion::Quaternion(const Rotation3d& R) : q_(R.toEigenQuaternion()) {}
+Quaternion::Quaternion(const Rotation3d& R) : q_(R.toEigenQuaternion())
+{
+}
 
 
-Quaternion::Quaternion(const mat& R) : q_(Rotation3d(R).toEigenQuaternion()) {}
+Quaternion::Quaternion(const mat& R) : q_(Rotation3d(R).toEigenQuaternion())
+{
+}
 
 
 Quaternion::Quaternion(double angle, const vec3& axis)
- : q_(Eigen::AngleAxisd(angle, arma_translation_to_eigen(axis))) {}
+  : q_(Eigen::AngleAxisd(angle, arma_translation_to_eigen(axis)))
+{
+}
 
 
 Rotation3d Quaternion::rotation() const
@@ -119,9 +131,8 @@ vec3 Quaternion::eulerAngles() const
 
 bool Quaternion::isUnit() const
 {
-  return std::sqrt(q_.x()*q_.x() + q_.y()*q_.y() + q_.z()*q_.z() + q_.w()*q_.w());
+  return std::sqrt(q_.x() * q_.x() + q_.y() * q_.y() + q_.z() * q_.z() + q_.w() * q_.w());
 }
-
 
 
 void Quaternion::print(const std::string& msg) const
@@ -137,18 +148,25 @@ void Quaternion::print(const std::string& msg) const
 
 /////////////////////////////////////////////////////////
 // Rotation
-Rotation3d::Rotation3d() {}
+Rotation3d::Rotation3d()
+{
+}
 
 
-Rotation3d::Rotation3d(const Quaternion& quaternion) : R_(quaternion.data()) {}
+Rotation3d::Rotation3d(const Quaternion& quaternion) : R_(quaternion.data())
+{
+}
 
 
-Rotation3d::Rotation3d(const mat& R)
-  : R_(arma_rotation_to_eigen(R)) {}
+Rotation3d::Rotation3d(const mat& R) : R_(arma_rotation_to_eigen(R))
+{
+}
 
 
 Rotation3d::Rotation3d(double roll, double pitch, double yaw)
-  : R_(drake::math::RollPitchYaw<double>(roll, pitch, yaw)) {}
+  : R_(drake::math::RollPitchYaw<double>(roll, pitch, yaw))
+{
+}
 
 
 tuple<vec, double> Rotation3d::angleAxis() const
@@ -169,25 +187,37 @@ vec Rotation3d::angleAxisTotal() const
 
 /////////////////////////////////////////////////////////
 // Transformation
-Transform3d::Transform3d() {}
+Transform3d::Transform3d()
+{
+}
 
 
-Transform3d::Transform3d(const vec3& p) : T_(arma_translation_to_eigen(p)) {}
+Transform3d::Transform3d(const vec3& p) : T_(arma_translation_to_eigen(p))
+{
+}
 
 
-Transform3d::Transform3d(const drake::math::RigidTransform<double>& T) : T_(T) {}
+Transform3d::Transform3d(const drake::math::RigidTransform<double>& T) : T_(T)
+{
+}
 
 
 Transform3d::Transform3d(const Quaternion& q, const vec3& p)
-: T_(q.data(), arma_translation_to_eigen(p)) {}
+  : T_(q.data(), arma_translation_to_eigen(p))
+{
+}
 
 
 Transform3d::Transform3d(const Rotation3d& R, const vec3& p)
-: T_(R.data(), arma_translation_to_eigen(p)) {}
+  : T_(R.data(), arma_translation_to_eigen(p))
+{
+}
 
 
 Transform3d::Transform3d(const mat& R, const vec3& p)
- : T_(Quaternion(R).data(), arma_translation_to_eigen(p)) {}
+  : T_(Quaternion(R).data(), arma_translation_to_eigen(p))
+{
+}
 
 
 mat Transform3d::adjoint() const
@@ -200,7 +230,7 @@ mat Transform3d::adjoint() const
   AdT.submat(0, 0, 2, 2) = R_transpose;
   AdT.submat(3, 3, 5, 5) = R_transpose;
   AdT.submat(0, 3, 2, 5) = -1.0 * R_transpose * skew_symmetric(T.col(3));
-  
+
   return AdT;
 }
 
@@ -231,6 +261,6 @@ vec3 Transform3d::operator*(const vec3& p) const
   const mat T = eigen_to_arma(T_.GetAsMatrix34());
   // rotation followed by translation
   return T.submat(0, 0, 2, 2) * p + T.col(3);
-} 
+}
 }  // namespace math
 }  // namespace quadruped_controller

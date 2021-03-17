@@ -39,8 +39,8 @@ using arma::vec3;
 
 using quadruped_controller::BalanceController;
 using quadruped_controller::JointController;
-using quadruped_controller::QuadrupedKinematics;
 using quadruped_controller::Pose;
+using quadruped_controller::QuadrupedKinematics;
 using quadruped_controller::math::Quaternion;
 using quadruped_controller::math::Rotation3d;
 
@@ -52,15 +52,15 @@ static bool stand_cmd_received = false;
 static bool cmd_vel_received = false;
 
 // Actual State
-static vec q(12, arma::fill::zeros);  // joint angles
+static vec q(12, arma::fill::zeros);     // joint angles
 static vec qdot(12, arma::fill::zeros);  // joint velocities
 
-static mat Rwb = eye(3, 3);             // COM orientation
+static mat Rwb = eye(3, 3);           // COM orientation
 static vec3 x(arma::fill::zeros);     // COM position
 static vec3 xdot(arma::fill::zeros);  // COM linear velocity
 static vec3 w(arma::fill::zeros);     // COM angular velocity
 
-// Cmd 
+// Cmd
 // body twist [vy, vy, vz, wx, wy, wz]
 static vec Vb(6, arma::fill::zeros);
 
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
   ros::Subscriber joint_sub = nh.subscribe("joint_states", 1, jointCallback);
   ros::Subscriber com_state_sub = nh.subscribe("com_state", 1, stateCallback);
   ros::Subscriber cmd_sub = nh.subscribe("cmd_vel", 1, cmdCallback);
-  
+
   ros::ServiceServer start_server = nh.advertiseService("stand_up", standConfigCallback);
 
   ros::AsyncSpinner spinner(4);
@@ -191,13 +191,14 @@ int main(int argc, char** argv)
   pnh.getParam("control/kp_w", kp_com_w);
   pnh.getParam("control/kd_p", kd_com_p);
   pnh.getParam("control/kd_w", kd_com_w);
-  const mat W = eye(12, 12) * w_diagonal;    // Weight on forces in fT*W*f
-  const mat S = arma::diagmat(vec(s_diagonal));    // Weight on least squares (Ax-b)*S*(Ax-b)
-  const vec kff(kff_gains);  // feed forward gains
-  const vec kp_p(kp_com_p);  // COM position Kp
-  const vec kp_w(kp_com_w);  // COM orientation Kp
-  const vec kd_p(kd_com_p);  // COM linear velocity Kd
-  const vec kd_w(kd_com_w);  // COM angular velocity Kd
+  const mat W = eye(12, 12) * w_diagonal;  // Weight on forces in f.T*W*f
+  const mat S =
+      arma::diagmat(vec(s_diagonal));  // Weight on least squares (Ax-b)*S*(Ax-b)
+  const vec kff(kff_gains);            // feed forward gains
+  const vec kp_p(kp_com_p);            // COM position Kp
+  const vec kp_w(kp_com_w);            // COM orientation Kp
+  const vec kd_p(kd_com_p);            // COM linear velocity Kd
+  const vec kd_w(kd_com_w);            // COM angular velocity Kd
 
   // std::vector<double> jc_kp;
   // std::vector<double> jc_kd;
@@ -210,7 +211,7 @@ int main(int argc, char** argv)
   const auto tau_max = pnh.param<double>("control/torque_max", 20.0);
 
   // Dynamic properties
-  const auto mu = 1.0;    // Coefficient of friction
+  const auto mu = 1.0;  // Coefficient of friction
 
   // Mass in URDF is 11kg
   const auto mass = 9.0;  // total mass
@@ -225,8 +226,8 @@ int main(int argc, char** argv)
 
 
   // GRF Control
-  BalanceController balance_controller(mu, mass, fzmin, fzmax, Ib, S, W, kff, kp_p, kd_p, kp_w,
-                                       kd_w);
+  BalanceController balance_controller(mu, mass, fzmin, fzmax, Ib, S, W, kff, kp_p, kd_p,
+                                       kp_w, kd_w);
 
   // Kinematic Model
   QuadrupedKinematics kinematics;
@@ -234,20 +235,20 @@ int main(int argc, char** argv)
   // Stance base control (only when standing)
   quadruped_controller::StanceBaseControl stance_control;
 
-  // User cmd integration step 
+  // User cmd integration step
   const auto dt = 0.05;
 
   // Hard code the desired COM state to standing configuration
-  mat Rwb_d = eye(3, 3);  // base orientation in world
-  vec3 x_d(arma::fill::zeros);      // position in world
+  mat Rwb_d = eye(3, 3);           // base orientation in world
+  vec3 x_d(arma::fill::zeros);     // position in world
   vec3 xdot_d(arma::fill::zeros);  // linear velocity
   vec3 w_d(arma::fill::zeros);     // angular velocity
 
   // Default standing state
-  const mat Rwb_stand = eye(3, 3);  
-  const vec3 x_stand = { 0., 0., 0.26 };     
-  const vec3 xdot_stand(arma::fill::zeros); 
-  const vec3 w_stand(arma::fill::zeros);   
+  const mat Rwb_stand = eye(3, 3);
+  const vec3 x_stand = { 0., 0., 0.26 };
+  const vec3 xdot_stand(arma::fill::zeros);
+  const vec3 w_stand(arma::fill::zeros);
 
   x_d = x_stand;
   bool standing = false;
@@ -268,20 +269,20 @@ int main(int argc, char** argv)
           standing = true;
         }
 
-        // Set desired states base on user cmd 
+        // Set desired states base on user cmd
         if (cmd_vel_received && standing)
         {
-          // Walking configuration 
+          // Walking configuration
           // const vec cmd = {Vb(0), Vb(1), Vb(2), 0.0, 0.0, Vb(5)};
 
           // Stande configuration
-          const vec cmd = {0.0, 0.0, Vb(2), Vb(3), Vb(4), Vb(5)};
+          const vec cmd = { 0.0, 0.0, Vb(2), Vb(3), Vb(4), Vb(5) };
 
           const Pose pose(Rwb, x);
-          // const Pose pose_desired = 
+          // const Pose pose_desired =
           //         quadruped_controller::integrate_twist_yaw(pose, cmd, dt);
 
-          // Do not update the pose very iteration to prevent drift 
+          // Do not update the pose very iteration to prevent drift
           const Pose pose_desired = stance_control.integrateTwist(pose, cmd, dt);
 
           Rwb_d = pose_desired.orientation.matrix();
@@ -290,11 +291,11 @@ int main(int argc, char** argv)
           // std::cout << "Trunk height: " << x(2) << std::endl;
           // std::cout << "Desired Trunk height: " << x_d(2) << std::endl;
 
-          // (pose.orientation.eulerAngles() * 180.0 / M_PI).print("actual orientation (deg)");
-          // pose.position.print("actual position (m)");
+          // (pose.orientation.eulerAngles() * 180.0 / M_PI).print("actual orientation
+          // (deg)"); pose.position.print("actual position (m)");
 
-          // (pose_desired.orientation.eulerAngles() * 180.0 / M_PI).print("orientation desired (deg)");
-          // pose_desired.position.print("position desired (m)");
+          // (pose_desired.orientation.eulerAngles() * 180.0 / M_PI).print("orientation
+          // desired (deg)"); pose_desired.position.print("position desired (m)");
 
           cmd_vel_received = false;
         }
@@ -308,7 +309,7 @@ int main(int argc, char** argv)
 
         vec tau = kinematics.jacobianTransposeControl(q, fb);
 
-        // Torque limits 
+        // Torque limits
         tau = arma::clamp(tau, tau_min, tau_max);
         // tau.print("tau");
 

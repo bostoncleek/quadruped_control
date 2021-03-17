@@ -44,8 +44,8 @@ class BalanceController
 {
 public:
   BalanceController(double mu, double mass, double fzmin, double fzmax, const mat& Ib,
-                    const mat& S, const mat& W, const vec& kff, const vec& kp_p, const vec& kd_p, const vec& kp_w,
-                    const vec& kd_w);
+                    const mat& S, const mat& W, const vec& kff, const vec& kp_p,
+                    const vec& kd_p, const vec& kp_w, const vec& kd_w);
 
 
   vec control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d, const vec& x,

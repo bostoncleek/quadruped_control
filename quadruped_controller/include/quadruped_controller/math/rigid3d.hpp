@@ -123,7 +123,7 @@ public:
     return eigen_to_arma(R_.matrix());
   }
 
-  const drake::math::RotationMatrix<double>& data() const 
+  const drake::math::RotationMatrix<double>& data() const
   {
     return R_;
   }
@@ -148,7 +148,7 @@ private:
 };
 
 
-class Transform3d 
+class Transform3d
 {
 public:
   Transform3d();
@@ -171,19 +171,19 @@ public:
 
   vec3 getTranslation() const;
 
-  Transform3d operator*(const Transform3d& T) const 
+  Transform3d operator*(const Transform3d& T) const
   {
     return Transform3d(T_ * T.data());
   }
 
   vec3 operator*(const vec3& p) const;
-  
+
   const drake::math::RigidTransform<double>& data() const
   {
     return T_;
   }
 
-  mat inverse() const 
+  mat inverse() const
   {
     return eigen_to_arma(T_.inverse().GetAsMatrix4());
   }
@@ -200,7 +200,6 @@ public:
 
 private:
   drake::math::RigidTransform<double> T_;
-
 };
 }  // namespace math
 }  // namespace quadruped_controller

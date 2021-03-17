@@ -76,8 +76,9 @@ void print_real_t(const real_t* const array, unsigned int n_rows, unsigned int n
 
 
 BalanceController::BalanceController(double mu, double mass, double fzmin, double fzmax,
-                                     const mat& Ib, const mat& S, const mat& W, const vec& kff, const vec& kp_p,
-                                     const vec& kd_p, const vec& kp_w, const vec& kd_w)
+                                     const mat& Ib, const mat& S, const mat& W,
+                                     const vec& kff, const vec& kp_p, const vec& kd_p,
+                                     const vec& kp_w, const vec& kd_w)
   : mu_(mu)
   , mass_(mass)
   , Ib_(Ib)
@@ -118,7 +119,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   // PD control on COM position and orientation
   // [R1] Eq(3)
   vec xddot_d = kp_p_ % (x_d - x) + kd_p_ % (xdot_d - xdot);
-  xddot_d(0) += kff_(0)* xdot_d(0);
+  xddot_d(0) += kff_(0) * xdot_d(0);
   xddot_d(1) += kff_(1) * xdot_d(1);
   xddot_d(2) += kff_(2) * mass_ * 9.81;
 
@@ -128,7 +129,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   // [R2] Proposition 2.5 and [R1] Eq(4)
   const Rotation3d R_error(Rwb_d * Rwb.t());
 
-  // TODO: verify that angleAxisTotal() should be used here 
+  // TODO: verify that angleAxisTotal() should be used here
   vec wdot_d = kp_w_ % R_error.angleAxisTotal() + kd_w_ % (w_d - w);
   wdot_d += kff_.rows(3, 5) % w_d;
   // wdot_d.print("wdot_d");
@@ -138,8 +139,8 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   const mat A_dyn = std::get<mat>(srb_dyn);
   const vec b_dyn = std::get<vec>(srb_dyn);
 
-  // TODO: Add regularization term Eq(6) 
-  // [R1] Convert Eq(6) to QP standard form 1/2*x.T*Q*x + x.T*c 
+  // TODO: Add regularization term Eq(6)
+  // [R1] Convert Eq(6) to QP standard form 1/2*x.T*Q*x + x.T*c
   // Q = 2*(A.T*S*A + W) (12x12)
   // c = -2*A.T*S*b (12x1)
   const mat Q = 2.0 * (A_dyn.t() * S_ * A_dyn + W_);
@@ -171,7 +172,8 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
 
     if (ret_val != qpOASES::SUCCESSFUL_RETURN)
     {
-      ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to initialize Balance Controller QP Solver");
+      ROS_ERROR_STREAM_NAMED(LOGNAME,
+                             "Failed to initialize Balance Controller QP Solver");
       return fw;
     }
   }
@@ -186,7 +188,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
     {
       ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to hotstart Balance Controller QP Solver");
 
-      // TODO: remove this after debug the hotstart failure 
+      // TODO: remove this after debug the hotstart failure
       ros::shutdown();
       return fw;
     }

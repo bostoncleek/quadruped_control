@@ -21,6 +21,6 @@ constexpr double PI = 3.14159265358979323846;
  * @return true if abs(d1 - d2) < epsilon
  */
 bool almost_equal(double d1, double d2, double epsilon = 1.0e-12);
-}
-}
+}  // namespace math
+}  // namespace quadruped_controller
 #endif
