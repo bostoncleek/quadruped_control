@@ -20,9 +20,9 @@ using arma::eye;
 using arma::mat;
 using arma::vec;
 
-using rigid3d::Quaternion;
-using rigid3d::Rotation3d;
-using rigid3d::skew_symmetric;
+using math::Quaternion;
+using math::Rotation3d;
+using math::skew_symmetric;
 
 using qpOASES::Options;
 using qpOASES::real_t;
@@ -44,7 +44,7 @@ class BalanceController
 {
 public:
   BalanceController(double mu, double mass, double fzmin, double fzmax, const mat& Ib,
-                    const mat& S, const vec& kp_p, const vec& kd_p, const vec& kp_w,
+                    const mat& S, const mat& W, const vec& kff, const vec& kp_p, const vec& kd_p, const vec& kp_w,
                     const vec& kd_w);
 
 
@@ -68,6 +68,7 @@ private:
   const vec g_;  // gravity vector in world frame (x3)
 
   // PD control gains
+  vec kff_;   // feed forward gains (x6)
   vec kp_p_;  // kp gain on COM position (x3)
   vec kd_p_;  // kd gain on COM linear velocity (x3)
   vec kp_w_;  // kp gain on COM orientaion (x3)
@@ -83,7 +84,8 @@ private:
 
   const int nWSR_;        // max working set recalculations
   double fzmin_, fzmax_;  // min and max normal reaction force (Newtons)
-  mat S_;                 // positive-definite weight on dynamics (6x6)
+  mat S_;                 // positive-definite weights on dynamics (6x6)
+  mat W_;                 // positive-definite weights on GRFs (12x12)
   mat C_;                 // constraints
 
   const real_t cpu_time_;  // max CPU time for QP solution (s)
@@ -97,7 +99,5 @@ private:
   // real_t qp_lb_[num_variables_qp_];
   // real_t qp_ub_[num_variables_qp_];
 };
-
 }  // namespace quadruped_controller
-
 #endif
