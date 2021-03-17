@@ -8,10 +8,13 @@
 
   <buildtool_depend>catkin</buildtool_depend>
   <depend>armadillo</depend>
+  <depend>geometry_msgs</depend>
   <depend>quadruped_msgs</depend>
   <depend>roscpp</depend>
   <depend>sensor_msgs</depend>
   <depend>std_srvs</depend>
 
+  <exec_depend>joy</exec_depend>
+  <exec_depend>teleop_twist_joy</exec_depend>
   <exec_depend>quadruped_simulation</exec_depend>
 </package>
