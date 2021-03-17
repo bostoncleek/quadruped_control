@@ -275,7 +275,7 @@ int main(int argc, char** argv)
           // Walking configuration
           // const vec cmd = {Vb(0), Vb(1), Vb(2), 0.0, 0.0, Vb(5)};
 
-          // Stande configuration
+          // Stand configuration
           const vec cmd = { 0.0, 0.0, Vb(2), Vb(3), Vb(4), Vb(5) };
 
           const Pose pose(Rwb, x);
@@ -285,8 +285,15 @@ int main(int argc, char** argv)
           // Do not update the pose very iteration to prevent drift
           const Pose pose_desired = stance_control.integrateTwist(pose, cmd, dt);
 
+          // Desired pose
           Rwb_d = pose_desired.orientation.matrix();
           x_d = pose_desired.position;
+
+          // Desired velocities
+          const vec Vw = pose.transform().adjoint() * cmd;
+          xdot_d = Vw.rows(0, 2);
+          w_d = Vw.rows(3, 5);
+
 
           // std::cout << "Trunk height: " << x(2) << std::endl;
           // std::cout << "Desired Trunk height: " << x_d(2) << std::endl;
