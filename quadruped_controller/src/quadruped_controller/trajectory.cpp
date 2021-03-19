@@ -57,24 +57,20 @@ Pose integrate_twist_yaw(const Pose& pose, const vec& u, double dt)
   return Pose(Twbp);
 }
 
-
 /////////////////////////////////////////////////////////
 // StanceBaseControl
 StanceBaseControl::StanceBaseControl()
 {
 }
 
-
 StanceBaseControl::StanceBaseControl(const Pose& pose) : pose_(pose)
 {
 }
-
 
 void StanceBaseControl::setPose(const Pose& pose)
 {
   pose_ = pose;
 }
-
 
 Pose StanceBaseControl::integrateTwist(const Pose& pose, const vec& u, double dt)
 {
@@ -118,7 +114,6 @@ Pose StanceBaseControl::integrateTwist(const Pose& pose, const vec& u, double dt
   pose_ = Pose(Twbp);
   return pose_;
 }
-
 
 /////////////////////////////////////////////////////////
 // BaseTrajectory

@@ -1,6 +1,6 @@
 /**
  * @file kinematics.hpp
- * @date 2021-09-04
+ * @date 2021-09-03
  * @author Boston Cleek
  * @brief Quadruped kinematics
  */
@@ -29,67 +29,52 @@ using std::vector;
 using std::cos;
 using std::sin;
 
-// using JacobianFunc = std::function<mat(const vec&, const vec&)>;
+/**
+ * @brief Compose the geometric jacobian for a single leg
+ * @param links - leg link configuration [l1, l2, l3]
+ * @param joints - leg joint angles [hip, thigh, calf]
+ * @return single leg jacobian (3x3)
+ */
+mat leg_jacobian(const vec& links, const vec& joints);
 
-mat leg_jacobian(const vec& links, const vec& joints)
-{
-  const auto l1 = links(0);
-  const auto l2 = links(1);
-  const auto l3 = links(2);
+/**
+ * @brief Forward kinematics for a single leg
+ * @param trans_bh - translation from base_link to hip link
+ * @param links - leg link configuration [l1, l2, l3]
+ * @param joints - leg joint angles [hip, thigh, calf]
+ * @return position of foot [x, y, z]
+ */
+vec leg_forward_kinematics(const vec& trans_bh, const vec& links, const vec& joints);
 
-  const auto t1 = joints(0);
-  const auto t2 = joints(1);
-  const auto t3 = joints(2);
-
-  mat jac(3, 3);
-  jac(0, 0) = 0.0;
-  jac(0, 1) = l2 * cos(t2) + l3 * cos(t2 + t3);
-  jac(0, 2) = l3 * cos(t2 + t3);
-
-  jac(1, 0) = -l1 * sin(t1) - l2 * cos(t1) * cos(t2) - l3 * cos(t1) * cos(t2 + t3);
-  jac(1, 1) = (l2 * sin(t2) + l3 * sin(t2 + t3)) * sin(t1);
-  jac(1, 2) = l3 * sin(t1) * sin(t2 + t3);
-
-  jac(2, 0) = l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3);
-  jac(2, 1) = -(l2 * sin(t2) + l3 * sin(t2 + t3)) * cos(t1);
-  jac(2, 2) = -l3 * sin(t2 + t3) * cos(t1);
-
-  return jac;
-}
-
-
-vec leg_forward_kinematics(const vec& trans_bh, const vec& links, const vec& joints)
-{
-  const auto l1 = links(0);
-  const auto l2 = links(1);
-  const auto l3 = links(2);
-
-  const auto t1 = joints(0);
-  const auto t2 = joints(1);
-  const auto t3 = joints(2);
-
-  vec foot_position(3);
-  foot_position(0) = l2 * sin(t2) + l3 * sin(t2 + t3) + trans_bh(0);
-  foot_position(1) =
-      l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3) + trans_bh(1);
-  foot_position(2) =
-      l1 * sin(t1) + l2 * cos(t1) * cos(t2) + l3 * cos(t1) * cos(t2 + t3) + trans_bh(2);
-
-  return foot_position;
-}
-
-
+/** @brief Kinematic model of a quarduped robot */
 class QuadrupedKinematics
 {
 public:
+  /** @brief Constructor */
   QuadrupedKinematics();
 
+  /**
+   * @brief Compose the position of all feet
+   * @param q - joint angles for four legs (12x1)
+   * @return postion of four feet (3x4)
+   * @details The input vector, q, contains the joint angles of all four legs
+   * [RL, FL, RR, FR] where each leg contains [hip, thigh, calf] joints. Each column
+   * in the output corresponds to a foot position [x, y, z].
+   */
   mat forwardKinematics(const vec& q) const;
 
-  vec jacobianTransposeControl(const vec& q, const vec& f);
+  /**
+   * @brief Compose the joint torques for four legs based on the force applied to the foot
+   * @param q - joint angles for four legs (12x1)
+   * @param f - force applied to all four feet (12x1)
+   * @return joint torques to achieve the desired force applied to foot
+   * @details The forces correspond to all four legs [RL, FL, RR, FR] where
+   * each force is of the format [fx, fy, fz] in the body frame.
+   */
+  vec jacobianTransposeControl(const vec& q, const vec& f) const;
 
 private:
-  // Map leg name to  leg link config/translation base to hip
+  // Map leg name to leg link configuration and translation from base to hip
   map<string, std::pair<vec, vec>> link_map_;
 };
 }  // namespace quadruped_controller

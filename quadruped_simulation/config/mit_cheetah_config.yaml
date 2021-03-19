@@ -1,10 +1,14 @@
 # Kinematic configuration for the MIT cheetah 
-# Initial pose
 # initial postion: x,y,z
 # initial orientation: x,y,z,w
-# Links 
+initial_pose:
+  postion: [0.0, 0.0, 0.06] 
+  orientation: [0.0, 0.0, 0.0, 1.0]
+
 # base_link: base_link frame
-# Joints 
+links:
+  base_link: "trunk"
+
 # joint_names: joint names
 # joint_actuator_names: joint actuator names
 # init_joint_positions: initial joint positions 
@@ -12,14 +16,6 @@
 # joint_velocities: initial joint velocities
 # stance_joint_positions: starting standing configuration joint positions 
 # stance_joint_velocities: starting standing configuration joint velocities
-
-initial_pose:
-  postion: [0.0, 0.0, 0.06] 
-  orientation: [0.0, 0.0, 0.0, 1.0]
-
-links:
-  base_link: "trunk"
-
 joints:
   num_joints: 12
 
@@ -38,6 +34,9 @@ joints:
   # Maps to joint actuator names 
   init_joint_torques: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
+# frequency: balance control loop frequenct (Hz)
+# torque_min: minimum joint torque (N*m)
+# torque_max: maximum joint torque (N*m)
 # s_diagonal: diagonal weights on least squares (Ax-b)*S*(Ax-b)
 # w_diagonal: diagonal weight on forces in fT*W*f in format f = [RL, FL, RR, FR] (fx,fy,fz)
 # kff: feed forward gain on [vx_d, vy_d, m*g, roll_dot, pitch_dot, yaw_dot]
@@ -46,7 +45,7 @@ joints:
 # kd_p: COM linear velocity Kd
 # kd_w: COM angular velocity Kd
 control:
-  frequency: 100.0 # Hz
+  frequency: 100.0 
   torque_min: -20.0
   torque_max: 20.0
 

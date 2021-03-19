@@ -7,13 +7,15 @@
  * @PARAMETERS:
  *
  * @PUBLISHES:
- *
+ *    joint_states (sensor_msgs/JointState) - joint names, positions, and velocities
+ *    com_state (quadruped_msgs/CoMState) - COM pose and velocity twist in world frame
  * @SUBSCRIBES:
- *
+ *    joint_torque_cmd (quadruped_msgs/JointTorqueCmd) - joint torques
+ * @SERVICES:
+ *    start_position (std_srvs/Empty) - sets robot to starting configuration
  */
 
-// TODO: publish reaction forces at feet and joint torques
-
+// TODO: publish actual reaction forces at feet and joint torques
 
 // C++
 #include <memory>
@@ -34,14 +36,12 @@
 #include <drake/common/find_resource.h>
 #include <drake/geometry/drake_visualizer.h>
 #include <drake/geometry/scene_graph.h>
-// #include <drake/lcm/drake_lcm.h>
 #include <drake/multibody/parsing/parser.h>
 #include <drake/multibody/plant/contact_results_to_lcm.h>
 #include <drake/systems/analysis/simulator.h>
 #include <drake/multibody/plant/multibody_plant.h>
 #include <drake/systems/framework/diagram_builder.h>
 #include <drake/systems/controllers/pid_controller.h>
-// #include <drake/systems/controllers/inverse_dynamics_controller.h>
 #include <drake/manipulation/util/robot_plan_utils.h>
 
 using drake::math::RigidTransformd;
@@ -59,7 +59,6 @@ static bool start_config_received = false;
 static std::map<std::string, unsigned int> joint_torque_map;
 // Control vector
 static VectorXd tau;
-
 
 void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
 {
@@ -87,14 +86,12 @@ void jointTorqueCallback(const quadruped_msgs::JointTorqueCmd::ConstPtr& msg)
   // std::cout << "Tau: \n" << tau << std::endl;
 }
 
-
 bool startConfigCallback(std_srvs::Empty::Request&, std_srvs::Empty::Response&)
 {
   ROS_INFO_STREAM_NAMED(LOGNAME, "Resetting robot to starting configuration");
   start_config_received = true;
   return true;
 }
-
 
 int main(int argc, char** argv)
 {
@@ -111,7 +108,7 @@ int main(int argc, char** argv)
   ros::ServiceServer start_server =
       nh.advertiseService("start_position", startConfigCallback);
 
-  ros::AsyncSpinner spinner(1);
+  ros::AsyncSpinner spinner(2);
   spinner.start();
 
   // Robot
@@ -240,7 +237,6 @@ int main(int argc, char** argv)
 
   drake::systems::Context<double>& plant_context =
       diagram->GetMutableSubsystemContext(plant, diagram_context.get());
-
 
   ROS_INFO_NAMED(LOGNAME, "Number of actuated joints: %i", plant.num_actuated_dofs());
   ROS_INFO_NAMED(LOGNAME, "Number of actuaters: %i", plant.num_actuators());

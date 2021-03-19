@@ -1,15 +1,60 @@
 /**
  * @file kinematics.cpp
- * @date 2021-09-04
+ * @date 2021-09-03
  * @author Boston Cleek
  * @brief Quadruped kinematics
  */
 
 #include <quadruped_controller/kinematics.hpp>
 
-
 namespace quadruped_controller
 {
+mat leg_jacobian(const vec& links, const vec& joints)
+{
+  const auto l1 = links(0);
+  const auto l2 = links(1);
+  const auto l3 = links(2);
+
+  const auto t1 = joints(0);
+  const auto t2 = joints(1);
+  const auto t3 = joints(2);
+
+  mat jac(3, 3);
+  jac(0, 0) = 0.0;
+  jac(0, 1) = l2 * cos(t2) + l3 * cos(t2 + t3);
+  jac(0, 2) = l3 * cos(t2 + t3);
+
+  jac(1, 0) = -l1 * sin(t1) - l2 * cos(t1) * cos(t2) - l3 * cos(t1) * cos(t2 + t3);
+  jac(1, 1) = (l2 * sin(t2) + l3 * sin(t2 + t3)) * sin(t1);
+  jac(1, 2) = l3 * sin(t1) * sin(t2 + t3);
+
+  jac(2, 0) = l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3);
+  jac(2, 1) = -(l2 * sin(t2) + l3 * sin(t2 + t3)) * cos(t1);
+  jac(2, 2) = -l3 * sin(t2 + t3) * cos(t1);
+
+  return jac;
+}
+
+vec leg_forward_kinematics(const vec& trans_bh, const vec& links, const vec& joints)
+{
+  const auto l1 = links(0);
+  const auto l2 = links(1);
+  const auto l3 = links(2);
+
+  const auto t1 = joints(0);
+  const auto t2 = joints(1);
+  const auto t3 = joints(2);
+
+  vec foot_position(3);
+  foot_position(0) = l2 * sin(t2) + l3 * sin(t2 + t3) + trans_bh(0);
+  foot_position(1) =
+      l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3) + trans_bh(1);
+  foot_position(2) =
+      l1 * sin(t1) + l2 * cos(t1) * cos(t2) + l3 * cos(t1) * cos(t2 + t3) + trans_bh(2);
+
+  return foot_position;
+}
+
 QuadrupedKinematics::QuadrupedKinematics()
 {
   // TODO: Load all these in
@@ -58,7 +103,6 @@ QuadrupedKinematics::QuadrupedKinematics()
   // leg_jacobian(link_map_.at("FR").second, q).print("J_FR");
 }
 
-
 mat QuadrupedKinematics::forwardKinematics(const vec& q) const
 {
   // Follows joint_state topic format: RL, FL, RR, FR
@@ -77,8 +121,7 @@ mat QuadrupedKinematics::forwardKinematics(const vec& q) const
   return ft_p;
 }
 
-
-vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f)
+vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f) const
 {
   vec tau(12);
 

@@ -40,7 +40,6 @@ JointController::JointController(const vec& kp, const vec& kd, const vec& tau_ff
   }
 }
 
-
 vec JointController::control(const vec& q, const vec& qd, const vec& v, const vec& vd)
 {
   q_error_ = qd - q;

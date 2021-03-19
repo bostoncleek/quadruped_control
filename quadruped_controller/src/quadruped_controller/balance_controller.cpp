@@ -31,7 +31,6 @@ void copy_to_real_t(const vec& source, real_t* target)
   }
 }
 
-
 void copy_to_real_t(const mat& source, real_t* target)
 {
   unsigned int count = 0;
@@ -45,7 +44,6 @@ void copy_to_real_t(const mat& source, real_t* target)
   }
 }
 
-
 vec copy_from_real_t(const real_t* const source, unsigned int n_rows)
 {
   vec target(n_rows);
@@ -56,7 +54,6 @@ vec copy_from_real_t(const real_t* const source, unsigned int n_rows)
 
   return target;
 }
-
 
 void print_real_t(const real_t* const array, unsigned int n_rows, unsigned int n_cols,
                   const std::string& msg)
@@ -73,7 +70,6 @@ void print_real_t(const real_t* const array, unsigned int n_rows, unsigned int n
     std::cout << std::endl;
   }
 }
-
 
 BalanceController::BalanceController(double mu, double mass, double fzmin, double fzmax,
                                      const mat& Ib, const mat& S, const mat& W,
@@ -106,10 +102,9 @@ BalanceController::BalanceController(double mu, double mass, double fzmin, doubl
   initConstraints();
 }
 
-
 vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d,
                                const vec& x, const vec& xdot, const vec& w,
-                               const vec& x_d, const vec& xdot_d, const vec& w_d)
+                               const vec& x_d, const vec& xdot_d, const vec& w_d) const
 {
   // TODO: return previouse solution if there is a failure
 
@@ -122,8 +117,6 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   xddot_d(0) += kff_(0) * xdot_d(0);
   xddot_d(1) += kff_(1) * xdot_d(1);
   xddot_d(2) += kff_(2) * mass_ * 9.81;
-
-
   // xddot_d.print("xddot_d");
 
   // [R2] Proposition 2.5 and [R1] Eq(4)
@@ -145,21 +138,19 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   // c = -2*A.T*S*b (12x1)
   const mat Q = 2.0 * (A_dyn.t() * S_ * A_dyn + W_);
   const vec c = -2.0 * A_dyn.t() * S_ * b_dyn;
-  // H.print("H");
-  // g.print("g");
 
   copy_to_real_t(Q, qp_Q_);
   copy_to_real_t(c, qp_c_);
-  // print_real_t(qp_H_, num_variables_qp_, num_variables_qp_);
-  // print_real_t(qp_g_, num_variables_qp_, 1);
 
+  // No lower/upper bound constraints on GRFs because
+  // the constraint matrix, C, takes care of this.
   real_t* qp_lb = nullptr;
   real_t* qp_ub = nullptr;
 
   // Primal solution
   real_t qp_xOpt[num_variables_qp_];
 
-  // Will update based on acutal
+  // Will update based on actual
   int nWSR_acutal = nWSR_;
   real_t cpu_time_actual = cpu_time_;
 
@@ -187,9 +178,6 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
     if (ret_val != qpOASES::SUCCESSFUL_RETURN)
     {
       ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to hotstart Balance Controller QP Solver");
-
-      // TODO: remove this after debug the hotstart failure
-      ros::shutdown();
       return fw;
     }
   }
@@ -208,9 +196,6 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
     return fw;
   }
 
-  // fw.print("GRF in World");
-  // print_real_t(qp_xOpt, num_variables_qp_, 1, "qp_xOpt");
-
   // Negate force directions and transform into body frame
   const mat Rbw = Rwb.t();
   vec fb(num_variables_qp_);
@@ -222,7 +207,6 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
 
   return -1.0 * fb;
 }
-
 
 tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, const vec& x,
                                             const vec& xddot_d, const vec& wdot_d) const
@@ -248,15 +232,10 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
   b.rows(0, 2) = mass_ * (xddot_d + g_);
   b.rows(3, 5) = Iw * wdot_d;
 
-  // Iw.print("Iw");
-  // A.print("Euler RBD: A");
-  // b.print("Euler RBD: b");
-
   return std::make_tuple(A, b);
 }
 
-
-void BalanceController::initConstraints()
+void BalanceController::initConstraints() const
 {
   const auto upper = 1000000.0;
   const auto lower = -1000000.0;
@@ -298,13 +277,5 @@ void BalanceController::initConstraints()
   copy_to_real_t(C_, qp_C_);
   copy_to_real_t(lbC, qp_lbC_);
   copy_to_real_t(ubC, qp_ubC_);
-
-  // C_.print("C");
-  // lbC.print("lbC");
-  // ubC.print("ubC");
-
-  // print_real_t(qp_C_, num_constraints_qp_, num_variables_qp_);
-  // print_real_t(qp_lbC_, num_constraints_qp_, 1);
-  // print_real_t(qp_ubC_, num_constraints_qp_, 1);
 }
 }  // namespace quadruped_controller

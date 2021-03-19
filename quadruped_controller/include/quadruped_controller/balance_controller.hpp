@@ -29,75 +29,136 @@ using qpOASES::real_t;
 using qpOASES::returnValue;
 using qpOASES::SQProblem;
 
-
+/**
+ * @brief Copy vector to array
+ * @param source - vector
+ * @param target[out] - array containing same contents as the source
+ */
 void copy_to_real_t(const vec& source, real_t* target);
 
+/**
+ * @brief Copy matrix to array
+ * @param source - matrix
+ * @param target[out] - array containing same contents as the source
+ */
 void copy_to_real_t(const mat& source, real_t* target);
 
+/**
+ * @brief Copy array to vector
+ * @param source - array
+ * @param n_rows - number of rows in output vector
+ * @return vector containing same contents as source
+ */
 vec copy_from_real_t(const real_t* const source, unsigned int n_rows);
 
+/**
+ * @brief Print array contents to stdout
+ * @param array - array to print
+ * @param n_rows - number of rows
+ * @param n_cols - number of columns
+ * @param msg - optional print message
+ */
 void print_real_t(const real_t* const array, unsigned int n_rows, unsigned int n_cols,
                   const std::string& msg = "");
 
-
+/** @brief Reactive optimal control strategy */
 class BalanceController
 {
 public:
+  /**
+   * @brief Constructor
+   * @param mu - friction coefficient (kg*m/s^2)
+   * @param mass - trunk mass (kg)
+   * @param fzmin - minimum z-axis ground reaction force (N)
+   * @param fzmax - maximum z-axis ground reaction force (N)
+   * @param Ib - trunk moment of inertia (kg*m^2)
+   * @param S - positive-definite weight matrix on least sqaures (6x6)
+   * @param W - positive-definite weight matrix on GRFs (12x12)
+   * @param kff - COM feedforward gains (6x1)
+   * @param kp_p - kp gain on COM position (3x1)
+   * @param kd_p - kd gain on COM linear velocity (3x1)
+   * @param kp_w - kp gain on COM orientaion (3x1)
+   * @param kd_w - kd gain on COM angular velocities (3x1)
+   */
   BalanceController(double mu, double mass, double fzmin, double fzmax, const mat& Ib,
                     const mat& S, const mat& W, const vec& kff, const vec& kp_p,
                     const vec& kd_p, const vec& kp_w, const vec& kd_w);
 
-
+  /**
+   * @brief Compose ground reaction forces
+   * @param ft_p - postions of feet in world (3x4)
+   * @param Rwb - rotation from world to base_link (3x3)
+   * @param Rwb_d - desired rotation from world to base_link (3x3)
+   * @param x - COM position in world [x, y, z] (3x1)
+   * @param xdot - COM linear velocity in world [vx, vy, vz] (3x1)
+   * @param w - COM angular velocity in world [wx, wy, wz] (3x1)
+   * @param x_d - desired COM position in world [x, y, z] (3x1)
+   * @param xdot_d - desired COM linear velocity in world [vx, vy, vz] (3x1)
+   * @param w_d - desired COM angular velocity in world [wx, wy, wz] (3x1)
+   * @return ground reaction forces in body frame (12x1)
+   */
   vec control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d, const vec& x,
               const vec& xdot, const vec& w, const vec& x_d, const vec& xdot_d,
-              const vec& w_d);
-
+              const vec& w_d) const;
 
 private:
+  /**
+   * @brief Compose linear Newton-Euler single rigid body dynamics
+   * @param ft_p - postions of feet in world (3x4)
+   * @param Rwb - rotation from world to base_link (3x3)
+   * @param x - COM position in world [x, y, z] (3x1)
+   * @param xddot_d - desired COM linear acceleration (3x1)
+   * @param wdot_d - desired COM angular acceleration (3x1)
+   * @return Newton-Euler dynamics written as a linear problem Ax = b [R1] Eq(5)
+   * @details Euler single rigid body dyanmics are described by tau = I*wdot + w x (I*w).
+   * The cross product term (w x (I*w)) is assumed to be ~ 0, therefore, the dynamics are
+   * linear. The cross product term is small for bodies with small angular velocities.
+   */
   tuple<mat, vec> dynamics(const mat& ft_p, const mat& Rwb, const vec& x,
                            const vec& xddot_d, const vec& wdot_d) const;
 
-  void initConstraints();
-
+  /** @brief Construct the feet friction cone and force contraints */
+  void initConstraints() const;
 
 private:
   // Dynamic properties
-  double mu_;    // coefficient of friction
-  double mass_;  // total mass of robot (kg)
-  mat Ib_;       // moment of interia in body frame (3x3)
-  const vec g_;  // gravity vector in world frame (x3)
+  const double mu_;    // coefficient of friction (kg*m/s^2)
+  const double mass_;  // total mass of robot (kg)
+  const mat Ib_;       // moment of interia in body frame (kg*m^2) (3x3)
+  const vec g_;        // gravity vector in world frame (m/s^2) (3x1)
 
   // PD control gains
-  vec kff_;   // feed forward gains (x6)
-  vec kp_p_;  // kp gain on COM position (x3)
-  vec kd_p_;  // kd gain on COM linear velocity (x3)
-  vec kp_w_;  // kp gain on COM orientaion (x3)
-  vec kd_w_;  // kd gain on COM angular velocities (x3)
+  const vec kff_;   // feed forward gains (6x1)
+  const vec kp_p_;  // kp gain on COM position (3x1)
+  const vec kd_p_;  // kd gain on COM linear velocity (3x1)
+  const vec kp_w_;  // kp gain on COM orientaion (3x1)
+  const vec kd_w_;  // kd gain on COM angular velocities (3x1)
 
   // QP variables
-  static const uint64_t num_equations_qp_{ 6 };
-  static const uint64_t num_variables_qp_{ 12 };
-  static const uint64_t num_constraints_qp_{ 20 };
+  static const uint64_t num_equations_qp_{ 6 };     // number of equations
+  static const uint64_t num_variables_qp_{ 12 };    // number of variable (GRFs)
+  static const uint64_t num_constraints_qp_{ 20 };  // total constraints (5 per foot)
 
   // QProblemB QPSolver_;
-  SQProblem QPSolver_;
+  mutable SQProblem QPSolver_;  // sequential QP solver
 
-  const int nWSR_;        // max working set recalculations
-  double fzmin_, fzmax_;  // min and max normal reaction force (Newtons)
-  mat S_;                 // positive-definite weights on dynamics (6x6)
-  mat W_;                 // positive-definite weights on GRFs (12x12)
-  mat C_;                 // constraints
+  const int nWSR_;              // max working set recalculations
+  const double fzmin_, fzmax_;  // min and max normal reaction force (N)
+  const mat S_;                 // positive-definite weight matrix on least sqaures (6x6)
+  const mat W_;                 // positive-definite weight matrix on GRFs (12x12)
+  mutable mat C_;               // constraints
 
   const real_t cpu_time_;  // max CPU time for QP solution (s)
-  real_t qp_Q_[num_variables_qp_ * num_variables_qp_];
-  real_t qp_c_[num_variables_qp_];
+  // QP standard form 1/2*x.T*Q*x + x.T*c
+  mutable real_t qp_Q_[num_variables_qp_ * num_variables_qp_];
+  mutable real_t qp_c_[num_variables_qp_];
 
-  real_t qp_C_[num_constraints_qp_ * num_variables_qp_];
-  real_t qp_lbC_[num_constraints_qp_];
-  real_t qp_ubC_[num_constraints_qp_];
+  mutable real_t qp_C_[num_constraints_qp_ * num_variables_qp_];  // constraint matrix
+  mutable real_t qp_lbC_[num_constraints_qp_];  // constraint lower bounds
+  mutable real_t qp_ubC_[num_constraints_qp_];  // constraint upper bounds
 
-  // real_t qp_lb_[num_variables_qp_];
-  // real_t qp_ub_[num_variables_qp_];
+  // real_t qp_lb_[num_variables_qp_]; // GRF lower bounds
+  // real_t qp_ub_[num_variables_qp_]; // GRF upper bounds
 };
 }  // namespace quadruped_controller
 #endif
