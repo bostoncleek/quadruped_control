@@ -10,11 +10,9 @@
 // C++
 #include <cmath>
 
-// Linear Algebra
-#include <armadillo>
-
 // Quadruped Control
 #include <quadruped_controller/math/rigid3d.hpp>
+#include <quadruped_controller/types.hpp>
 
 namespace quadruped_controller
 {
@@ -57,12 +55,34 @@ private:
 };
 
 /** @brief COM reference trajectory generator */
-class BaseTrajectory
+// class BaseTrajectory
+// {
+// public:
+//   BaseTrajectory();
+
+// private:
+// };
+
+/** @brief Generates a trajectory for a single foot */
+class FootTrajectory
 {
 public:
-  BaseTrajectory();
+  FootTrajectory();
+
+  bool generateTrajetory(const vec3& p_start, const vec3& p_center, const vec3& p_final) const;
+
+  FootState trackTrajectory(double t) const;  
 
 private:
+  mat initSystem() const;
+
+  mat constructConstraints(const vec3& p_start, const vec3& p_center, const vec3& p_final) const;
+
+private:  
+  mat A_; // system  
+  mutable mat coefficients_; // polynomial coefficients
 };
+
+
 }  // namespace quadruped_controller
 #endif
