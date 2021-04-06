@@ -13,21 +13,10 @@
 #include <atomic>
 #include <mutex>
 
-// Linear Algebra
-#include <armadillo>
+#include <quadruped_controller/types.hpp>
 
 namespace quadruped_controller
 {
-using arma::vec;
-
-enum LegState
-{
-  swing = 0,
-  stance = 1
-};
-
-typedef std::map<std::string, LegState> gait;
-
 /** @brief Scheduler leg swing and stance phases*/
 class GaitScheduler
 {
@@ -36,8 +25,8 @@ public:
    * @brief Constructor
    * @param t_swing - leg swing time (s)
    * @param t_stance - leg stance time (s)
-   * @param offset - phase offset for legs [RL FL RR FR] on domain [0 2PI)
-   * @details The gait is periodic mapping to a domain [0 2PI).
+   * @param offset - phase offset for legs [RL FL RR FR] on domain [0 1)
+   * @details The gait is periodic mapping to a domain [0 1).
    */
   GaitScheduler(double t_swing, double t_stance, const vec& offset);
 
@@ -49,7 +38,7 @@ public:
 
   void reset() const;
 
-  gait schedule() const;
+  GaitMap schedule() const;
 
 private:
   void execute() const;
@@ -61,10 +50,10 @@ private:
 private:
   double t_swing_;       // swing time (s)
   double t_stance_;      // stance time (s)
-  double stance_angle_;  // angle for stance phase (radians)
+  double stance_phase_;  // stance phase 
 
   vec offset_;             // phase offsets for legs [RL FL RR FR]
-  mutable vec positions_;  // angular positions for legs [RL FL RR FR]
+  mutable vec phases_;     // phases for legs [RL FL RR FR]
 
   mutable std::atomic_bool running_;  // true when scheduler started
   mutable std::thread worker_;        // runs phase updates
