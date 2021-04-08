@@ -68,7 +68,7 @@ public:
   /**
    * @brief Constructor
    * @param mu - friction coefficient (kg*m/s^2)
-   * @param mass - trunk mass (kg)
+   * @param mass - total mass (kg)
    * @param fzmin - minimum z-axis ground reaction force (N)
    * @param fzmax - maximum z-axis ground reaction force (N)
    * @param Ib - trunk moment of inertia (kg*m^2)
@@ -122,17 +122,17 @@ private:
 
 private:
   // Dynamic properties
-  const double mu_;    // coefficient of friction (kg*m/s^2)
-  const double mass_;  // total mass of robot (kg)
-  const mat Ib_;       // moment of interia in body frame (kg*m^2) (3x3)
-  const vec g_;        // gravity vector in world frame (m/s^2) (3x1)
+  double mu_;    // coefficient of friction (kg*m/s^2)
+  double mass_;  // total mass of robot (kg)
+  mat Ib_;       // moment of interia in body frame (kg*m^2) (3x3)
+  vec g_;        // gravity vector in world frame (m/s^2) (3x1)
 
   // PD control gains
-  const vec kff_;   // feed forward gains (6x1)
-  const vec kp_p_;  // kp gain on COM position (3x1)
-  const vec kd_p_;  // kd gain on COM linear velocity (3x1)
-  const vec kp_w_;  // kp gain on COM orientaion (3x1)
-  const vec kd_w_;  // kd gain on COM angular velocities (3x1)
+  vec kff_;   // feed forward gains (6x1)
+  vec kp_p_;  // kp gain on COM position (3x1)
+  vec kd_p_;  // kd gain on COM linear velocity (3x1)
+  vec kp_w_;  // kp gain on COM orientaion (3x1)
+  vec kd_w_;  // kd gain on COM angular velocities (3x1)
 
   // QP variables
   static const uint64_t num_equations_qp_{ 6 };     // number of equations
@@ -142,13 +142,13 @@ private:
   // QProblemB QPSolver_;
   mutable SQProblem QPSolver_;  // sequential QP solver
 
-  const int nWSR_;              // max working set recalculations
-  const double fzmin_, fzmax_;  // min and max normal reaction force (N)
-  const mat S_;                 // positive-definite weight matrix on least sqaures (6x6)
-  const mat W_;                 // positive-definite weight matrix on GRFs (12x12)
-  mutable mat C_;               // constraints
+  int nWSR_;              // max working set recalculations
+  double fzmin_, fzmax_;  // min and max normal reaction force (N)
+  mat S_;                 // positive-definite weight matrix on least sqaures (6x6)
+  mat W_;                 // positive-definite weight matrix on GRFs (12x12)
+  mutable mat C_;         // constraints
 
-  const real_t cpu_time_;  // max CPU time for QP solution (s)
+  real_t cpu_time_;  // max CPU time for QP solution (s)
   // QP standard form 1/2*x.T*Q*x + x.T*c
   mutable real_t qp_Q_[num_variables_qp_ * num_variables_qp_];
   mutable real_t qp_c_[num_variables_qp_];

@@ -5,7 +5,6 @@
  * @brief Force balance controller
  */
 
-#include <ros/ros.h>
 #include <ros/console.h>
 #include <quadruped_controller/balance_controller.hpp>
 
@@ -14,9 +13,6 @@ References:
   [R1] M. Focchi, A. del Prete, I. Havoutis, R. Featherstone, D. G. Caldwell,
       and C. Semini. High-slope terrain locomotion for torque-controlled quadruped
       robots. Autonomous Robots, 2016.
-
-  [R2] R. M. Murray, S. S. Sastry, and L. Zexiang. A Mathematical Introduction
-  to Robotic Manipulation. CRC Press, Inc., Boca Raton, FL, USA, 1st edition, 1994.
 */
 
 namespace quadruped_controller
@@ -119,7 +115,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   xddot_d(2) += kff_(2) * mass_ * 9.81;
   // xddot_d.print("xddot_d");
 
-  // [R2] Proposition 2.5 and [R1] Eq(4)
+  // [R1] Eq(4)
   const Rotation3d R_error(Rwb_d * Rwb.t());
 
   // TODO: verify that angleAxisTotal() should be used here
