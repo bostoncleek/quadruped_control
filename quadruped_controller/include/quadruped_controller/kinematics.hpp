@@ -57,13 +57,13 @@ public:
   mat forwardKinematics(const vec& q) const;
 
   /**
-  * @brief Inverse kinematics for a single leg
-  * @param leg_name - name of leg 
-  * @param trans_bh - translation from base_link to hip link
-  * @param links - leg link configuration [l1, l2, l3]
-  * @param foothold - position of foot relative to base_link [x, y, z]
-  * @return leg joint angle [hip, thigh, calf]
-  */
+   * @brief Inverse kinematics for a single leg
+   * @param leg_name - name of leg
+   * @param trans_bh - translation from base_link to hip link
+   * @param links - leg link configuration [l1, l2, l3]
+   * @param foothold - position of foot relative to base_link [x, y, z]
+   * @return leg joint angle [hip, thigh, calf]
+   */
   vec3 legInverseKinematics(const std::string& leg_name, const vec3& foothold);
 
   /**
@@ -79,7 +79,7 @@ public:
 private:
   // Map leg name to leg link configuration and translation from base to hip
   std::map<std::string, std::pair<vec3, vec3>> link_map_;
-  vec3 links_; // lengths [l1 l2 l3]
+  vec3 links_;  // lengths [l1 l2 l3]
 };
 }  // namespace quadruped_controller
 #endif

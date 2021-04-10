@@ -172,7 +172,7 @@ int main(int argc, char** argv)
 
   // Robot joint configuration
   // const auto num_joints =
-  //     static_cast<unsigned int>(pnh.param<int>("joints/num_joints", 0));
+  //     static_cast<unsigned int>(pnh.param<int>("joints/num_joints", 12));
   std::vector<std::string> joint_actuator_names;
   pnh.getParam("joints/joint_actuator_names", joint_actuator_names);
 
@@ -268,17 +268,15 @@ int main(int argc, char** argv)
         // Set desired states base on user cmd
         if (cmd_vel_received && standing)
         {
-          // Walking configuration
+          // Walking control configuration
           // const vec cmd = {Vb(0), Vb(1), Vb(2), 0.0, 0.0, Vb(5)};
 
-          // Stand configuration
+          // Standing control configuration
           const vec cmd = { 0.0, 0.0, Vb(2), Vb(3), Vb(4), Vb(5) };
 
           const Pose pose(Rwb, x);
-          // const Pose pose_desired =
-          //         quadruped_controller::integrate_twist_yaw(pose, cmd, dt);
 
-          // Do not update the pose very iteration to prevent drift
+          // Do not update the pose every iteration -> prevents drift
           const Pose pose_desired = stance_control.integrateTwist(pose, cmd, dt);
 
           // Desired pose
@@ -290,8 +288,8 @@ int main(int argc, char** argv)
           xdot_d = Vw.rows(0, 2);
           w_d = Vw.rows(3, 5);
 
-          // std::cout << "Trunk height: " << x(2) << std::endl;
-          // std::cout << "Desired Trunk height: " << x_d(2) << std::endl;
+          std::cout << "Trunk height: " << x(2) << std::endl;
+          std::cout << "Desired Trunk height: " << x_d(2) << std::endl;
 
           // (pose.orientation.eulerAngles() * 180.0 / M_PI).print("actual orientation
           // (deg)"); pose.position.print("actual position (m)");

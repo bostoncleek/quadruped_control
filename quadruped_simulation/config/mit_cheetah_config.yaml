@@ -9,13 +9,12 @@ initial_pose:
 links:
   base_link: "trunk"
 
+# num_joints: total number of joints
 # joint_names: joint names
 # joint_actuator_names: joint actuator names
-# init_joint_positions: initial joint positions 
-# init_joint_torques: initial joints torques 
-# joint_velocities: initial joint velocities
-# stance_joint_positions: starting standing configuration joint positions 
-# stance_joint_velocities: starting standing configuration joint velocities
+# init_joint_positions: initial joint positions (rad)
+# init_joint_torques: initial joints torques (N*m)
+# joint_velocities: initial joint velocities (rad/s)
 joints:
   num_joints: 12
 

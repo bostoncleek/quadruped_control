@@ -1,0 +1,14 @@
+<launch> 
+  <param name="robot_description"
+    command="$(find xacro)/xacro $(find mit_cheetah_description)/urdf/cheetah.urdf.xacro"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <node pkg="quadruped_controller" type="gait_visualizer" name="gait_visualizer" output="screen">
+    <rosparam command="load" file="$(find quadruped_controller)/config/gait_visualizer.yaml" />
+  </node>
+
+  <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_trunk" args="0 0 0.2429 0 0 0 1 world trunk" />
+
+  <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find quadruped_controller)/config/gait_visualizer.rviz"/>  
+</launch>

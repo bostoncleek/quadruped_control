@@ -10,11 +10,11 @@
 
 namespace quadruped_controller
 {
-using std::cos;
-using std::sin;
 using std::atan2;
-using std::sqrt;
+using std::cos;
 using std::pow;
+using std::sin;
+using std::sqrt;
 
 mat leg_jacobian(const vec3& links, const vec3& joints)
 {
@@ -128,9 +128,10 @@ mat QuadrupedKinematics::forwardKinematics(const vec& q) const
   return ft_p;
 }
 
-vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name, const vec3& foothold)
+vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name,
+                                               const vec3& foothold)
 {
-  // position of foot relative to hip 
+  // position of foot relative to hip
   const vec3 ft_p = foothold - link_map_.at(leg_name).first;
 
   const auto x = ft_p(0);
@@ -141,14 +142,14 @@ vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name, cons
   const auto l2 = links_(1);
   const auto l3 = links_(2);
 
-  auto d = (x*x + y*y + z*z - l1*l1  - l2*l2 - l3*l3) / (2.0 * l2 *l3);
+  auto d = (x * x + y * y + z * z - l1 * l1 - l2 * l2 - l3 * l3) / (2.0 * l2 * l3);
 
   if (d > 1.0)
   {
     d = 1.0;
   }
 
-  auto sqrt_component = y*y + z*z - l1*l1;
+  auto sqrt_component = y * y + z * z - l1 * l1;
   if (sqrt_component < 0.0)
   {
     sqrt_component = 0.0;
@@ -156,22 +157,21 @@ vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name, cons
 
   vec3 q;
 
-  // TODO: make sure leg name is valid 
+  // TODO: make sure leg name is valid
   if (leg_name == "FR" || leg_name == "RR")
   {
     q(0) = atan2(z, y) + atan2(sqrt(sqrt_component), -l1);
   }
-  else 
+  else
   {
     q(0) = -(atan2(z, -y) + atan2(sqrt(sqrt_component), -l1));
   }
 
-  q(2) = atan2(-sqrt(1.0 - d*d), d);
+  q(2) = atan2(-sqrt(1.0 - d * d), d);
   q(1) = -atan2(x, sqrt(sqrt_component)) - atan2(l3 * sin(q(2)), l2 + l3 * cos(q(2)));
 
   return q;
 }
-
 
 vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f) const
 {

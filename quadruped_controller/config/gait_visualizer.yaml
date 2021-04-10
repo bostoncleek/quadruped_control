@@ -1,0 +1,46 @@
+# initial postion: x, y, z
+# initial orientation: x, y, z, w
+# linear_velocity: vx, vy, vz
+robot_state:
+  position: [0.0, 0.0, 0.2429] 
+  orientation: [0.0, 0.0, 0.0, 1.0]
+  linear_velocity: [0.1, 0.0, 0.0]
+  
+# linear_velocity: vx, vy, vz
+# angular_velocity: wx, wy, wz
+robot_cmd:
+  linear_velocity: [0.0, 0.0, 0.0]
+  angular_velocity: [0.0, 0.0, 0.0]
+
+# t_stance: time in stance phase (s)
+# t_swing: time in swing phase (s)
+# height: max height achieved at center of leg swing trajectory (m)
+# gait_offset_phases: for legs [RL FL RR FR] in domain [0 1]
+gait:
+  t_stance: 2.0
+  t_swing: 2.0 
+  height: 0.08
+  gait_offset_phases: [0.0, 0.5, 0.5, 0.0]
+
+links:
+  base_link: "trunk"
+
+legs:
+  leg_names: ["RL", "FL", "RR", "FR"]
+
+# num_joints: total number of joints
+# joint_names: joint names
+# init_joint_positions: initial joint positions (rad)
+joints:
+  num_joints: 12
+
+  joint_names: ["RL_hip_joint", "RL_thigh_joint", "RL_calf_joint",
+                "FL_hip_joint", "FL_thigh_joint", "FL_calf_joint",
+                "RR_hip_joint", "RR_thigh_joint", "RR_calf_joint",
+                "FR_hip_joint", "FR_thigh_joint", "FR_calf_joint"]
+
+  # Maps to joint names
+  init_joint_positions: [0.056, 0.90, -1.94,
+                         0.056, 0.90, -1.94,
+                         -0.056, 0.90, -1.94,
+                         -0.056, 0.90, -1.94]

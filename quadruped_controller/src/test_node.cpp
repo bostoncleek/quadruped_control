@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 
   tf2_ros::Buffer tfBuffer;
   tf2_ros::TransformListener tfListener(tfBuffer);
-  
+
   ros::Rate rate(10);
   while (nh.ok())
   {
@@ -53,7 +53,7 @@ int main(int argc, char** argv)
     // const auto l2 = 0.211;
     // const auto l3 = 0.230;
 
-    try 
+    try
     {
       const geometry_msgs::TransformStamped T_hip_foot =
           tfBuffer.lookupTransform("RR_hip0", "RR_foot", ros::Time(0));
@@ -63,7 +63,6 @@ int main(int argc, char** argv)
                        T_hip_foot.transform.translation.z };
 
       kinematics.legInverseKinematics("RR", FR_foot).print("RR IK");
-
     }
 
     catch (tf2::TransformException& ex)
@@ -73,7 +72,6 @@ int main(int argc, char** argv)
 
     rate.sleep();
   }
-
 
   // FootTrajectory foot_traj;
 

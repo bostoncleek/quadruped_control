@@ -132,11 +132,11 @@ int main(int argc, char** argv)
   pnh.getParam("initial_pose/orientation", init_orientation);
 
   // Robot kinematics
-  const auto base_link_name = pnh.param<std::string>("links/base_link", "base_link");
+  const auto base_link_name = pnh.param<std::string>("links/base_link", "trunk");
 
   // Robot initial joints
   const auto num_joints =
-      static_cast<unsigned int>(pnh.param<int>("joints/num_joints", 0));
+      static_cast<unsigned int>(pnh.param<int>("joints/num_joints", 12));
   std::vector<std::string> joint_names;
   std::vector<std::string> joint_actuator_names;
   std::vector<double> init_joint_positions;
@@ -151,13 +151,15 @@ int main(int argc, char** argv)
       (num_joints != init_joint_torques.size()))
   {
     ROS_ERROR_STREAM_NAMED(LOGNAME,
-                           "Invalid joint configuration. Num(joints) = Num(joint motors) "
-                           "= Num(joint positions) = Num(joint torques)");
+                           "Invalid joint configuration. Num(joints) != Num(joint names) "
+                           "!= Num(joint motors) "
+                           "!= Num(joint initial positions) != Num(joint torques)");
 
     ROS_ERROR_NAMED(LOGNAME,
-                    "Num(joints): %lu, Num(joint motors): %lu, Num(joint positions): "
+                    "Num(joints): %u, Num(joints names): %lu, Num(joint motors): %lu, "
+                    "Num(joint initial positions): "
                     "%lu, Num(joint torques): %lu ",
-                    joint_names.size(), joint_actuator_names.size(),
+                    num_joints, joint_names.size(), joint_actuator_names.size(),
                     init_joint_positions.size(), init_joint_torques.size());
   }
 
