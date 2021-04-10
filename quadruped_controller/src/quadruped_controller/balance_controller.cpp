@@ -208,9 +208,13 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
                                             const vec& xddot_d, const vec& wdot_d) const
 {
   // TODO: verify this is correct the feet are already in the body frame
-  // Vector from COM to each foot position in an inertial fram
-  // const mat x_ft_p = ft_p;//.each_col() - x;
-  const mat x_ft_p = ft_p.each_col() + x;
+  // Vector from COM to each foot position in world frame
+  // pcom,i = ft_p - x_com = (Rwb * ft_p + x_com) - x_com = Rwb * ft_p
+  mat com_ft_p(3, 4);
+  com_ft_p.col(0) = Rwb * ft_p.col(0);
+  com_ft_p.col(1) = Rwb * ft_p.col(1);
+  com_ft_p.col(2) = Rwb * ft_p.col(2);
+  com_ft_p.col(3) = Rwb * ft_p.col(3);
 
   // Moment of Interia in world frame
   const mat Iw = Rwb * Ib_ * Rwb.t();
@@ -221,10 +225,10 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
   A.submat(0, 6, 2, 8) = eye(3, 3);
   A.submat(0, 9, 2, 11) = eye(3, 3);
 
-  A.submat(3, 0, 5, 2) = skew_symmetric(x_ft_p.col(0));
-  A.submat(3, 3, 5, 5) = skew_symmetric(x_ft_p.col(1));
-  A.submat(3, 6, 5, 8) = skew_symmetric(x_ft_p.col(2));
-  A.submat(3, 9, 5, 11) = skew_symmetric(x_ft_p.col(3));
+  A.submat(3, 0, 5, 2) = skew_symmetric(com_ft_p.col(0));
+  A.submat(3, 3, 5, 5) = skew_symmetric(com_ft_p.col(1));
+  A.submat(3, 6, 5, 8) = skew_symmetric(com_ft_p.col(2));
+  A.submat(3, 9, 5, 11) = skew_symmetric(com_ft_p.col(3));
 
   vec b(num_equations_qp_, arma::fill::zeros);
   b.rows(0, 2) = mass_ * (xddot_d + g_);

@@ -86,7 +86,7 @@ public:
 
   /**
    * @brief Compose ground reaction forces
-   * @param ft_p - postions of feet in world (3x4)
+   * @param ft_p - postions of feet in body frame (COM) (3x4)
    * @param Rwb - rotation from world to base_link (3x3)
    * @param Rwb_d - desired rotation from world to base_link (3x3)
    * @param x - COM position in world [x, y, z] (3x1)
@@ -104,7 +104,7 @@ public:
 private:
   /**
    * @brief Compose linear Newton-Euler single rigid body dynamics
-   * @param ft_p - postions of feet in world (3x4)
+   * @param ft_p - postions of feet body frame (COM)  (3x4)
    * @param Rwb - rotation from world to base_link (3x3)
    * @param x - COM position in world [x, y, z] (3x1)
    * @param xddot_d - desired COM linear acceleration (3x1)
