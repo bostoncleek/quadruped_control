@@ -19,6 +19,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   std_srvs
+  tf2_ros
+  visualization_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -55,6 +57,8 @@ catkin_package(
   roscpp
   sensor_msgs
   std_srvs
+  tf2_ros
+  visualization_msgs
  DEPENDS
   ARMADILLO
   drake
@@ -76,7 +80,10 @@ include_directories(
 
 ## Declare a C++ library
 add_library(${PROJECT_NAME}
+  include/${PROJECT_NAME}/types.hpp
   src/${PROJECT_NAME}/balance_controller.cpp
+  src/${PROJECT_NAME}/foot_planner.cpp
+  src/${PROJECT_NAME}/gait.cpp
   src/${PROJECT_NAME}/joint_controller.cpp
   src/${PROJECT_NAME}/kinematics.cpp
   src/${PROJECT_NAME}/trajectory.cpp
@@ -93,12 +100,14 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(commander src/commander_node.cpp)
-# add_executable(test_qp src/test_qp_node.cpp)
+add_executable(fake_gait src/fake_gait_node.cpp)
+add_executable(test_node src/test_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(commander ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-# add_dependencies(test_qp ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(fake_gait ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(test_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(${PROJECT_NAME}
@@ -114,12 +123,18 @@ target_link_libraries(commander
   ${ARMADILLO_LIBRARIES}
 )
 
-# target_link_libraries(test_qp
-#   ${catkin_LIBRARIES}
-#   ${PROJECT_NAME}
-#   ${ARMADILLO_LIBRARIES}
-#   # ${qpOASES_LIBRARIES}
-# )
+target_link_libraries(fake_gait
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+  ${ARMADILLO_LIBRARIES}
+)
+
+target_link_libraries(test_node
+  ${catkin_LIBRARIES}
+  ${PROJECT_NAME}
+  ${ARMADILLO_LIBRARIES}
+  # ${qpOASES_LIBRARIES}
+)
 
 #############
 ## Install ##
@@ -137,7 +152,7 @@ target_link_libraries(commander
 
 ## Mark executables for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
-install(TARGETS commander
+install(TARGETS commander fake_gait test_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

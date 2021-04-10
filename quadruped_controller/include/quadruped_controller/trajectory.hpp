@@ -67,22 +67,73 @@ private:
 class FootTrajectory
 {
 public:
+  /** @brief Constructor */
   FootTrajectory();
 
-  bool generateTrajetory(const vec3& p_start, const vec3& p_center, const vec3& p_final) const;
+  /**
+   * @brief Generates trajectory
+   * @param p_start - foot start position [x y z]
+   * @param p_center - desired foot position at trajectory center [xc, yc, zc]
+   * @param p_final - desired final foot position [xf yf zf]
+   * @return true if the trajectory is successfully generated
+   * @details The trajectory is generated using a sextic polynomial and consists
+   * of the foot's position and velocity on the time domain [0 1]. The initial and
+   * terminal velocities and accelerations are zero.
+   */
+  bool generateTrajetory(const vec3& p_start, const vec3& p_center,
+                         const vec3& p_final) const;
 
-  FootState trackTrajectory(double t) const;  
+  /**
+   * @brief Retrieve the foot state at a given time
+   * @param t - time [0 1]
+   * @return desired position and velocity of foot
+   */
+  FootState trackTrajectory(double t) const;
 
 private:
+  /**
+   * @brief Construct system of equations
+   * @return system (7x7)
+   * @details In a linear system AX = B, this constructs A
+   */
   mat initSystem() const;
 
-  mat constructConstraints(const vec3& p_start, const vec3& p_center, const vec3& p_final) const;
+  /**
+   * @brief Construct constant terms
+   * @param p_start - foot start position [x y z]
+   * @param p_center - desired foot position at trajectory center [xc, yc, zc]
+   * @param p_final - desired final foot position [xf yf zf]
+   * @return constant terms (7x3)
+   * @details In a linear system AX = B, this constructs B
+   */
+  mat constantTerms(const vec3& p_start, const vec3& p_center, const vec3& p_final) const;
 
-private:  
-  mat A_; // system  
-  mutable mat coefficients_; // polynomial coefficients
+private:
+  mat A_;                     // system (7x7)
+  mutable mat coefficients_;  // polynomial coefficients (7x3)
 };
 
+/** @brief Manages foot trajectories */
+class FootTrajectoryManager
+{
+public:
+  FootTrajectoryManager(double height, double t_swing, double t_stance);
+
+  FootStateMap referenceStates(const GaitMap& gait_map,
+                               const FootTrajBoundsMap& foot_traj_map) const;
+
+  FootStateMap referenceStates(const GaitMap& gait_map) const;
+
+  FootState referenceState(const std::string& leg_name, double phase) const;
+
+private:
+  double height_;        // max height in foot trajectory
+  double stance_phase_;  // when stance phase ends [0 1)
+  double slope_;         // scale trajectory via interpolation
+  double y_intercept_;   // scale trajectory via interpolation
+  mutable std::map<std::string, FootTrajectory>
+      traj_map_;  // map leg name to foot trajectory
+};
 
 }  // namespace quadruped_controller
 #endif

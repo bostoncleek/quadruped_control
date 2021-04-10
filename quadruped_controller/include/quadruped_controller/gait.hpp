@@ -50,10 +50,10 @@ private:
 private:
   double t_swing_;       // swing time (s)
   double t_stance_;      // stance time (s)
-  double stance_phase_;  // stance phase 
+  double stance_phase_;  // stance phase
 
-  vec offset_;             // phase offsets for legs [RL FL RR FR]
-  mutable vec phases_;     // phases for legs [RL FL RR FR]
+  vec offset_;          // phase offsets for legs [RL FL RR FR]
+  mutable vec phases_;  // phases for legs [RL FL RR FR]
 
   mutable std::atomic_bool running_;  // true when scheduler started
   mutable std::thread worker_;        // runs phase updates

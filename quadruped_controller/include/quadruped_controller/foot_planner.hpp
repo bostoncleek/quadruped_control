@@ -24,9 +24,14 @@ public:
                   const vec3& xdot_d, const vec3& w_d, const std::string& leg_name) const;
 
 private:
-  double g_;                             // gravitaional magnitude (m/s^2)
-  double k_;                             // feedback gain
+  std::vector<std::string> updateStates(const GaitMap& gait_map) const;
+
+private:
+  double g_;  // gravitaional magnitude (m/s^2)
+  double k_;  // feedback gain
+
   std::map<std::string, vec3> hip_map_;  // map leg name to vector from com to hip
+  mutable std::map<std::string, LegState> state_map_;  // map leg name to leg state
 };
 }  // namespace quadruped_controller
 #endif

@@ -21,6 +21,13 @@ constexpr double PI = 3.14159265358979323846;
  * @return true if abs(d1 - d2) < epsilon
  */
 bool almost_equal(double d1, double d2, double epsilon = 1.0e-12);
+
+/**
+ * @brief Normalize angle [0 2PI)
+ * @param angle - radians
+ * @return normalized angle
+ */
+double normalize_angle_2PI(double angle);
 }  // namespace math
 }  // namespace quadruped_controller
 #endif

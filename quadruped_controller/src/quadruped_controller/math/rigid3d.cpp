@@ -273,7 +273,7 @@ mat Transform3d::adjoint() const
 tuple<Quaternion, vec3> Transform3d::components() const
 {
   const mat T = eigen_to_arma(T_.GetAsMatrix34());
-  return std::make_pair(Quaternion(T.submat(0, 0, 2, 2)), T.submat(0, 3, 2, 3));
+  return std::make_tuple(Quaternion(T.submat(0, 0, 2, 2)), T.submat(0, 3, 2, 3));
 }
 
 Quaternion Transform3d::getQuaternion() const

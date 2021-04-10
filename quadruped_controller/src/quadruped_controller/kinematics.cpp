@@ -6,10 +6,17 @@
  */
 
 #include <quadruped_controller/kinematics.hpp>
+#include <quadruped_controller/math/numerics.hpp>
 
 namespace quadruped_controller
 {
-mat leg_jacobian(const vec& links, const vec& joints)
+using std::cos;
+using std::sin;
+using std::atan2;
+using std::sqrt;
+using std::pow;
+
+mat leg_jacobian(const vec3& links, const vec3& joints)
 {
   const auto l1 = links(0);
   const auto l2 = links(1);
@@ -35,7 +42,7 @@ mat leg_jacobian(const vec& links, const vec& joints)
   return jac;
 }
 
-vec leg_forward_kinematics(const vec& trans_bh, const vec& links, const vec& joints)
+vec3 leg_forward_kinematics(const vec3& trans_bh, const vec3& links, const vec3& joints)
 {
   const auto l1 = links(0);
   const auto l2 = links(1);
@@ -45,7 +52,7 @@ vec leg_forward_kinematics(const vec& trans_bh, const vec& links, const vec& joi
   const auto t2 = joints(1);
   const auto t3 = joints(2);
 
-  vec foot_position(3);
+  vec3 foot_position;
   foot_position(0) = l2 * sin(t2) + l3 * sin(t2 + t3) + trans_bh(0);
   foot_position(1) =
       l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3) + trans_bh(1);
@@ -67,23 +74,23 @@ QuadrupedKinematics::QuadrupedKinematics()
   const auto l1 = 0.077;
   const auto l2 = 0.211;
   const auto l3 = 0.230;
+  links_ = { l1, l2, l3 };
 
   // Base to each hip
-  const vec trans_rl = { -xbh, ybh, zbh };
-  const vec trans_fl = { xbh, ybh, zbh };
+  const vec3 trans_rl = { -xbh, ybh, zbh };
+  const vec3 trans_fl = { xbh, ybh, zbh };
 
-  const vec trans_rr = { -xbh, -ybh, zbh };
-  const vec trans_fr = { xbh, -ybh, zbh };
+  const vec3 trans_rr = { -xbh, -ybh, zbh };
+  const vec3 trans_fr = { xbh, -ybh, zbh };
 
   // Left and Right leg link configurations
-  const vec left_links = { l1, -l2, -l3 };
-  const vec right_links = { -l1, -l2, -l3 };
+  const vec3 left_links = { l1, -l2, -l3 };
+  const vec3 right_links = { -l1, -l2, -l3 };
 
-  link_map_.emplace(std::make_pair("RL", std::make_pair(trans_rl, left_links)));
-  link_map_.emplace(std::make_pair("FL", std::make_pair(trans_fl, left_links)));
-
-  link_map_.emplace(std::make_pair("RR", std::make_pair(trans_rr, right_links)));
-  link_map_.emplace(std::make_pair("FR", std::make_pair(trans_fr, right_links)));
+  link_map_.emplace("RL", std::pair(trans_rl, left_links));
+  link_map_.emplace("FL", std::pair(trans_fl, left_links));
+  link_map_.emplace("RR", std::pair(trans_rr, right_links));
+  link_map_.emplace("FR", std::pair(trans_fr, right_links));
 
   // TEST
   // vec q = {0.63, 1.04, -1.60};
@@ -120,6 +127,51 @@ mat QuadrupedKinematics::forwardKinematics(const vec& q) const
 
   return ft_p;
 }
+
+vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name, const vec3& foothold)
+{
+  // position of foot relative to hip 
+  const vec3 ft_p = foothold - link_map_.at(leg_name).first;
+
+  const auto x = ft_p(0);
+  const auto y = ft_p(1);
+  const auto z = ft_p(2);
+
+  const auto l1 = links_(0);
+  const auto l2 = links_(1);
+  const auto l3 = links_(2);
+
+  auto d = (x*x + y*y + z*z - l1*l1  - l2*l2 - l3*l3) / (2.0 * l2 *l3);
+
+  if (d > 1.0)
+  {
+    d = 1.0;
+  }
+
+  auto sqrt_component = y*y + z*z - l1*l1;
+  if (sqrt_component < 0.0)
+  {
+    sqrt_component = 0.0;
+  }
+
+  vec3 q;
+
+  // TODO: make sure leg name is valid 
+  if (leg_name == "FR" || leg_name == "RR")
+  {
+    q(0) = atan2(z, y) + atan2(sqrt(sqrt_component), -l1);
+  }
+  else 
+  {
+    q(0) = -(atan2(z, -y) + atan2(sqrt(sqrt_component), -l1));
+  }
+
+  q(2) = atan2(-sqrt(1.0 - d*d), d);
+  q(1) = -atan2(x, sqrt(sqrt_component)) - atan2(l3 * sin(q(2)), l2 + l3 * cos(q(2)));
+
+  return q;
+}
+
 
 vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f) const
 {

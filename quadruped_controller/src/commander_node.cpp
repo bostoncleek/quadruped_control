@@ -28,10 +28,11 @@
 #include <geometry_msgs/Twist.h>
 
 // Quadruped Control
-#include <quadruped_controller/joint_controller.hpp>
 #include <quadruped_controller/balance_controller.hpp>
-#include <quadruped_controller/trajectory.hpp>
+#include <quadruped_controller/gait.hpp>
+#include <quadruped_controller/joint_controller.hpp>
 #include <quadruped_controller/kinematics.hpp>
+#include <quadruped_controller/trajectory.hpp>
 #include <quadruped_controller/math/numerics.hpp>
 #include <quadruped_msgs/CoMState.h>
 #include <quadruped_msgs/JointTorqueCmd.h>
@@ -183,13 +184,13 @@ int main(int argc, char** argv)
   std::vector<double> kp_com_w;
   std::vector<double> kd_com_p;
   std::vector<double> kd_com_w;
-  pnh.getParam("control/w_diagonal", w_diagonal);
-  pnh.getParam("control/s_diagonal", s_diagonal);
-  pnh.getParam("control/kff", kff_gains);
-  pnh.getParam("control/kp_p", kp_com_p);
-  pnh.getParam("control/kp_w", kp_com_w);
-  pnh.getParam("control/kd_p", kd_com_p);
-  pnh.getParam("control/kd_w", kd_com_w);
+  pnh.getParam("balance_control/w_diagonal", w_diagonal);
+  pnh.getParam("balance_control/s_diagonal", s_diagonal);
+  pnh.getParam("balance_control/kff", kff_gains);
+  pnh.getParam("balance_control/kp_p", kp_com_p);
+  pnh.getParam("balance_control/kp_w", kp_com_w);
+  pnh.getParam("balance_control/kd_p", kd_com_p);
+  pnh.getParam("balance_control/kd_w", kd_com_w);
 
   // Weight on forces in f.T*W*f
   const mat W = eye(12, 12) * w_diagonal;
@@ -207,23 +208,18 @@ int main(int argc, char** argv)
   // pnh.getParam("joint_control/kp", jc_kp);
   // pnh.getParam("joint_control/kd", jc_kd);
   // pnh.getParam("joint_control/tau_ff", tau_feed_forward);
-  const auto frequency = pnh.param<double>("control/frequency", 100.0);
-  const auto tau_min = pnh.param<double>("control/torque_min", -20.0);
-  const auto tau_max = pnh.param<double>("control/torque_max", 20.0);
+  const auto frequency = pnh.param<double>("balance_control/frequency", 100.0);
+  const auto tau_min = pnh.param<double>("balance_control/torque_min", -20.0);
+  const auto tau_max = pnh.param<double>("balance_control/torque_max", 20.0);
 
   // Dynamic properties
-  const auto mu = 1.0;  // Coefficient of friction
-
-  // Mass in URDF is 11kg
-  const auto mass = 9.0;  // total mass
-
-  const auto fzmin = 10.0;   // absolute min z-direction reaction force
-  const auto fzmax = 160.0;  // absolute max z-direction reaction force
-
-  mat Ib(3, 3, arma::fill::zeros);  // inertia of base
-  Ib(0, 0) = 0.011253;              // Ixx
-  Ib(1, 1) = 0.036203;              // Iyy
-  Ib(2, 2) = 0.042673;              // Izz
+  std::vector<double> inertia_body;
+  pnh.getParam("dynamics/Ib", inertia_body);
+  const mat Ib = arma::diagmat(vec(inertia_body));
+  const auto mu = pnh.param<double>("dynamics/mu", 0.8);
+  const auto mass = pnh.param<double>("dynamics/mass", 11.0);
+  const auto fzmin = pnh.param<double>("dynamics/fzmin", 10.0);
+  const auto fzmax = pnh.param<double>("dynamics/fzmax", 160.0);
 
   // GRF Control
   const BalanceController balance_controller(mu, mass, fzmin, fzmax, Ib, S, W, kff, kp_p,
@@ -313,6 +309,7 @@ int main(int argc, char** argv)
             balance_controller.control(ft_p, Rwb, Rwb_d, x, xdot, w, x_d, xdot_d, w_d);
         // fb.print("fb");
 
+        // TODO: try J^-1 for better performance
         vec tau = kinematics.jacobianTransposeControl(q, fb);
 
         // Torque limits

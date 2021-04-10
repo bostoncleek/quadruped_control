@@ -32,6 +32,34 @@ struct RobotStateCoM
   mat33 Rwb;  // rotation from world to COM (3x3)
 };
 
+/** @brief Foot state in cartesian space */
+struct FootState
+{
+  FootState() = default;
+
+  FootState(const vec3& position, const vec3& velocity)
+    : position(position), velocity(velocity)
+  {
+  }
+
+  vec3 position;  // position [x, y, z]
+  vec3 velocity;  // linear velocity [vx, vy, vz]
+};
+
+/** @brief Foot trajectory position boundary conditions */
+struct FootTrajBounds
+{
+  FootTrajBounds() = default;
+
+  FootTrajBounds(const vec3& p_start, const vec3& p_final)
+    : p_start(p_start), p_final(p_final)
+  {
+  }
+
+  vec3 p_start;  // initial position [x, y, z]
+  vec3 p_final;  // final position [x, y, z]
+};
+
 /** @brief Leg state in gait */
 enum LegState
 {
@@ -44,5 +72,11 @@ typedef std::map<std::string, std::pair<LegState, double>> GaitMap;
 
 /** @brief map leg name to desired foot placement in world frame */
 typedef std::map<std::string, vec3> FootholdMap;
+
+/** @brief map leg name to foot position and velocity in world frame */
+typedef std::map<std::string, FootState> FootStateMap;
+
+/** @brief map leg name to foot trajectory boundary conditions */
+typedef std::map<std::string, FootTrajBounds> FootTrajBoundsMap;
 }  // namespace quadruped_controller
 #endif

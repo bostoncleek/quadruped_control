@@ -44,7 +44,7 @@ joints:
 # kp_w: COM orientation Kp
 # kd_p: COM linear velocity Kd
 # kd_w: COM angular velocity Kd
-control:
+balance_control:
   frequency: 100.0 
   torque_min: -20.0
   torque_max: 20.0
@@ -53,9 +53,21 @@ control:
   s_diagonal: [1.0, 1.0, 1.0, 10.0, 10.0, 5.0]
   w_diagonal: [0.00001]
   
-  kff: [0.0, 0.0, 0.20, 0.0, 0.0, 0.0]
+  kff: [0.0, 0.0, 0.15, 0.0, 0.0, 0.0]
   kp_p: [100.0, 100.0, 150.0]
   kp_w: [3000.0, 3000.0, 3000.0]
 
   kd_p: [50.0, 50.0, 50.0]
   kd_w: [250.0, 250.0, 250.0]
+
+# Ib: moment of inertia in body frame (kg*m2)
+# mass: total mass (kg)
+# mu: coefficient of friction (kg*m/s^2)
+# fzmin: absolute minimum z-axis ground reaction force (N)
+# fzmax: absolute maximum z-axis ground reaction force (N)
+dynamics: 
+  Ib: [0.011253, 0.036203, 0.042673]
+  mass: 11.0  
+  mu: 0.8 
+  fzmin: 10.0 
+  fzmax: 160.0

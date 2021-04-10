@@ -207,8 +207,10 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
 tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, const vec& x,
                                             const vec& xddot_d, const vec& wdot_d) const
 {
-  // Vector from COM to each foot position
-  const mat x_ft_p = ft_p.each_col() - x;
+  // TODO: verify this is correct the feet are already in the body frame
+  // Vector from COM to each foot position in an inertial fram
+  // const mat x_ft_p = ft_p;//.each_col() - x;
+  const mat x_ft_p = ft_p.each_col() + x;
 
   // Moment of Interia in world frame
   const mat Iw = Rwb * Ib_ * Rwb.t();

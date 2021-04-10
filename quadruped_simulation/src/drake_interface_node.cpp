@@ -163,13 +163,8 @@ int main(int argc, char** argv)
 
   for (unsigned int i = 0; i < num_joints; i++)
   {
-    joint_torque_map.emplace(std::make_pair(joint_actuator_names.at(i), i));
+    joint_torque_map.emplace(joint_actuator_names.at(i), i);
   }
-
-  // for (const auto& [key, value] : joint_torque_map)
-  // {
-  //   std::cout << key << " " << value << std::endl;
-  // }
 
   // Place base_link relative to world_body
   const Vector3d start_position(init_pose.data());
@@ -280,18 +275,8 @@ int main(int argc, char** argv)
   auto current_time = 0.0;
   while (nh.ok())
   {
-    // ros::spinOnce();
-
     // TODO: which context to use? I think this is required to get the current trajectory context.
     const drake::systems::Context<double>& context = simulator.get_context();
-
-    // if (current_time > 2.0)
-    // {
-    //   ROS_INFO_NAMED(LOGNAME, "Drive");
-
-    //   // tau(0) = -100.;
-    //   // input_port.FixValue(&plant_context, tau);
-    // }
 
     if (start_config_received)
     {
