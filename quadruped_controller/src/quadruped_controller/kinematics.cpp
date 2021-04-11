@@ -16,52 +16,6 @@ using std::pow;
 using std::sin;
 using std::sqrt;
 
-mat leg_jacobian(const vec3& links, const vec3& joints)
-{
-  const auto l1 = links(0);
-  const auto l2 = links(1);
-  const auto l3 = links(2);
-
-  const auto t1 = joints(0);
-  const auto t2 = joints(1);
-  const auto t3 = joints(2);
-
-  mat jac(3, 3);
-  jac(0, 0) = 0.0;
-  jac(0, 1) = l2 * cos(t2) + l3 * cos(t2 + t3);
-  jac(0, 2) = l3 * cos(t2 + t3);
-
-  jac(1, 0) = -l1 * sin(t1) - l2 * cos(t1) * cos(t2) - l3 * cos(t1) * cos(t2 + t3);
-  jac(1, 1) = (l2 * sin(t2) + l3 * sin(t2 + t3)) * sin(t1);
-  jac(1, 2) = l3 * sin(t1) * sin(t2 + t3);
-
-  jac(2, 0) = l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3);
-  jac(2, 1) = -(l2 * sin(t2) + l3 * sin(t2 + t3)) * cos(t1);
-  jac(2, 2) = -l3 * sin(t2 + t3) * cos(t1);
-
-  return jac;
-}
-
-vec3 leg_forward_kinematics(const vec3& trans_bh, const vec3& links, const vec3& joints)
-{
-  const auto l1 = links(0);
-  const auto l2 = links(1);
-  const auto l3 = links(2);
-
-  const auto t1 = joints(0);
-  const auto t2 = joints(1);
-  const auto t3 = joints(2);
-
-  vec3 foot_position;
-  foot_position(0) = l2 * sin(t2) + l3 * sin(t2 + t3) + trans_bh(0);
-  foot_position(1) =
-      l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3) + trans_bh(1);
-  foot_position(2) =
-      l1 * sin(t1) + l2 * cos(t1) * cos(t2) + l3 * cos(t1) * cos(t2 + t3) + trans_bh(2);
-
-  return foot_position;
-}
-
 QuadrupedKinematics::QuadrupedKinematics()
 {
   // TODO: Load all these in
@@ -116,20 +70,40 @@ mat QuadrupedKinematics::forwardKinematics(const vec& q) const
   // Foot position relative to base frame
   // Each column is a foot position (x,y,z)
   mat ft_p(3, 4);
-  ft_p.col(0) = leg_forward_kinematics(link_map_.at("RL").first,
-                                       link_map_.at("RL").second, q.rows(0, 2));
-  ft_p.col(1) = leg_forward_kinematics(link_map_.at("FL").first,
-                                       link_map_.at("FL").second, q.rows(3, 5));
-  ft_p.col(2) = leg_forward_kinematics(link_map_.at("RR").first,
-                                       link_map_.at("RR").second, q.rows(6, 8));
-  ft_p.col(3) = leg_forward_kinematics(link_map_.at("FR").first,
-                                       link_map_.at("FR").second, q.rows(9, 11));
+  ft_p.col(0) = forwardKinematics("RL", q.rows(0, 2));
+  ft_p.col(1) = forwardKinematics("FL", q.rows(3, 5));
+  ft_p.col(2) = forwardKinematics("RR", q.rows(6, 8));
+  ft_p.col(3) = forwardKinematics("FR", q.rows(9, 11));
 
   return ft_p;
 }
 
+vec3 QuadrupedKinematics::forwardKinematics(const std::string& leg_name,
+                                            const vec3& q) const
+{
+  const vec3 trans_bh = link_map_.at(leg_name).first;
+  const vec3 links = link_map_.at(leg_name).second;
+
+  const auto l1 = links(0);
+  const auto l2 = links(1);
+  const auto l3 = links(2);
+
+  const auto t1 = q(0);
+  const auto t2 = q(1);
+  const auto t3 = q(2);
+
+  vec3 foot_position;
+  foot_position(0) = l2 * sin(t2) + l3 * sin(t2 + t3) + trans_bh(0);
+  foot_position(1) =
+      l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3) + trans_bh(1);
+  foot_position(2) =
+      l1 * sin(t1) + l2 * cos(t1) * cos(t2) + l3 * cos(t1) * cos(t2 + t3) + trans_bh(2);
+
+  return foot_position;
+}
+
 vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name,
-                                               const vec3& foothold)
+                                               const vec3& foothold) const
 {
   // position of foot relative to hip
   const vec3 ft_p = foothold - link_map_.at(leg_name).first;
@@ -173,14 +147,42 @@ vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name,
   return q;
 }
 
+mat33 QuadrupedKinematics::legJacobian(const std::string& leg_name, const vec3& q) const
+{
+  const vec3 links = link_map_.at(leg_name).second;
+
+  const auto l1 = links(0);
+  const auto l2 = links(1);
+  const auto l3 = links(2);
+
+  const auto t1 = q(0);
+  const auto t2 = q(1);
+  const auto t3 = q(2);
+
+  mat jac(3, 3);
+  jac(0, 0) = 0.0;
+  jac(0, 1) = l2 * cos(t2) + l3 * cos(t2 + t3);
+  jac(0, 2) = l3 * cos(t2 + t3);
+
+  jac(1, 0) = -l1 * sin(t1) - l2 * cos(t1) * cos(t2) - l3 * cos(t1) * cos(t2 + t3);
+  jac(1, 1) = (l2 * sin(t2) + l3 * sin(t2 + t3)) * sin(t1);
+  jac(1, 2) = l3 * sin(t1) * sin(t2 + t3);
+
+  jac(2, 0) = l1 * cos(t1) - l2 * sin(t1) * cos(t2) - l3 * sin(t1) * cos(t2 + t3);
+  jac(2, 1) = -(l2 * sin(t2) + l3 * sin(t2 + t3)) * cos(t1);
+  jac(2, 2) = -l3 * sin(t2 + t3) * cos(t1);
+
+  return jac;
+}
+
 vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f) const
 {
   vec tau(12);
 
-  const mat j_rl = leg_jacobian(link_map_.at("RL").second, q.rows(0, 2));
-  const mat j_fl = leg_jacobian(link_map_.at("FL").second, q.rows(3, 5));
-  const mat j_rr = leg_jacobian(link_map_.at("RR").second, q.rows(6, 8));
-  const mat j_fr = leg_jacobian(link_map_.at("FR").second, q.rows(9, 11));
+  const mat j_rl = legJacobian("RL", q.rows(0, 2));
+  const mat j_fl = legJacobian("FL", q.rows(3, 5));
+  const mat j_rr = legJacobian("RR", q.rows(6, 8));
+  const mat j_fr = legJacobian("FR", q.rows(9, 11));
 
   tau.rows(0, 2) = j_rl.t() * f.rows(0, 2);
   tau.rows(3, 5) = j_fl.t() * f.rows(3, 5);

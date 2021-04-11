@@ -19,25 +19,9 @@
 namespace quadruped_controller
 {
 using arma::mat;
+using arma::mat33;
 using arma::vec;
 using arma::vec3;
-
-/**
- * @brief Compose the geometric jacobian for a single leg
- * @param links - leg link configuration [l1, l2, l3]
- * @param joints - leg joint angles [hip, thigh, calf]
- * @return single leg jacobian (3x3)
- */
-mat leg_jacobian(const vec3& links, const vec3& joints);
-
-/**
- * @brief Forward kinematics for a single leg
- * @param trans_bh - translation from base_link to hip link
- * @param links - leg link configuration [l1, l2, l3]
- * @param joints - leg joint angles [hip, thigh, calf]
- * @return position of foot relative to base_link [x, y, z]
- */
-vec3 leg_forward_kinematics(const vec3& trans_bh, const vec3& links, const vec3& joints);
 
 /** @brief Kinematic model of a quarduped robot */
 class QuadrupedKinematics
@@ -47,7 +31,7 @@ public:
   QuadrupedKinematics();
 
   /**
-   * @brief Compose the position of all feet
+   * @brief Compose the position of all feet in body frame
    * @param q - joint angles for four legs (12x1)
    * @return postion of four feet relative to base_link (3x4)
    * @details The input vector, q, contains the joint angles of all four legs
@@ -57,6 +41,13 @@ public:
   mat forwardKinematics(const vec& q) const;
 
   /**
+   * @brief Compose the position of a single foot in body frame
+   * @param q - joint angles [hip, thigh, calf] [x, y, z]
+   * @return postion of four feet relative to base_link
+   */
+  vec3 forwardKinematics(const std::string& leg_name, const vec3& q) const;
+
+  /**
    * @brief Inverse kinematics for a single leg
    * @param leg_name - name of leg
    * @param trans_bh - translation from base_link to hip link
@@ -64,7 +55,15 @@ public:
    * @param foothold - position of foot relative to base_link [x, y, z]
    * @return leg joint angle [hip, thigh, calf]
    */
-  vec3 legInverseKinematics(const std::string& leg_name, const vec3& foothold);
+  vec3 legInverseKinematics(const std::string& leg_name, const vec3& foothold) const;
+
+  /**
+   * @brief Compose the geometric jacobian for a single leg
+   * @param leg_name - name of leg
+   * @param joints - leg joint angles [hip, thigh, calf]
+   * @return single leg jacobian (3x3)
+   */
+  mat33 legJacobian(const std::string& leg_name, const vec3& q) const;
 
   /**
    * @brief Compose the joint torques for four legs based on the force applied to the foot
