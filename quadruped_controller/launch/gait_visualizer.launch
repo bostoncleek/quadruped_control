@@ -8,7 +8,5 @@
     <rosparam command="load" file="$(find quadruped_controller)/config/gait_visualizer.yaml" />
   </node>
 
-  <node pkg="tf2_ros" type="static_transform_publisher" name="world_to_trunk" args="0 0 0.2429 0 0 0 1 world trunk" />
-
   <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find quadruped_controller)/config/gait_visualizer.rviz"/>  
 </launch>

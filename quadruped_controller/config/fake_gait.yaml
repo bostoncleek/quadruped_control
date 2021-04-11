@@ -1,3 +1,7 @@
+
+# control loop frequency (Hz)
+# frequency: 500.0
+
 # initial postion: x, y, z
 # initial orientation: x, y, z, w
 # linear_velocity: vx, vy, vz
@@ -6,12 +10,6 @@ robot_state:
   orientation: [0.0, 0.0, 0.0, 1.0]
   linear_velocity: [0.1, 0.0, 0.0]
   
-# linear_velocity: vx, vy, vz
-# angular_velocity: wx, wy, wz
-robot_cmd:
-  linear_velocity: [0.0, 0.0, 0.0]
-  angular_velocity: [0.0, 0.0, 0.1]
-
 # t_stance: time in stance phase (s)
 # t_swing: time in swing phase (s)
 # height: max height achieved at center of leg swing trajectory (m)
@@ -19,7 +17,7 @@ robot_cmd:
 gait:
   t_stance: 3.0
   t_swing: 3.0 
-  height: 0.08
+  height: 0.15
   gait_offset_phases: [0.0, 0.5, 0.5, 0.0]
 
 links:

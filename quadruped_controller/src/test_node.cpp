@@ -38,40 +38,61 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
+  ScheduledPhasesMap schedule_map;
+  schedule_map.emplace("RL", LegScheduledPhases{ 0.0, 0.5, 0.5, 1.0 });
+  schedule_map.emplace("FL", LegScheduledPhases{ 0.5, 1.0, 0.0, 0.5 });
+  schedule_map.emplace("RR", LegScheduledPhases{ 0.5, 1.0, 0.0, 0.5 });
+  schedule_map.emplace("FR", LegScheduledPhases{ 0.0, 0.5, 0.5, 1.0 });
 
-  QuadrupedKinematics kinematics;
+  GaitMap gait_map;
+  gait_map.emplace("RL", std::make_pair(LegState::stance, 0.2));
+  gait_map.emplace("FL", std::make_pair(LegState::swing, 0.6));
+  gait_map.emplace("RR", std::make_pair(LegState::swing, 0.6));
+  gait_map.emplace("FR", std::make_pair(LegState::stance, 0.2));
 
-  tf2_ros::Buffer tfBuffer;
-  tf2_ros::TransformListener tfListener(tfBuffer);
+  FootholdMap foot_map;
+  foot_map.emplace("RL", vec3{ -0.196, 0.050, 0.0 });
+  foot_map.emplace("FL", vec3{ 0.196, 0.050, 0.0 });
+  foot_map.emplace("RR", vec3{ -0.196, -0.050, 0.0 });
+  foot_map.emplace("FR", vec3{ 0.196, -0.050, 0.0 });
 
-  ros::Rate rate(10);
-  while (nh.ok())
-  {
-    // const auto l1 = 0.077;
-    // const auto l2 = 0.211;
-    // const auto l3 = 0.230;
+  SupportPolygon support_poylgon;
+  support_poylgon.position(schedule_map, foot_map, gait_map).print();
 
-    try
-    {
-      const geometry_msgs::TransformStamped T_hip_foot =
-          tfBuffer.lookupTransform("RR_hip0", "RR_foot", ros::Time(0));
+  // ros::AsyncSpinner spinner(1);
+  // spinner.start();
 
-      vec3 FR_foot = { T_hip_foot.transform.translation.x,
-                       T_hip_foot.transform.translation.y,
-                       T_hip_foot.transform.translation.z };
+  // QuadrupedKinematics kinematics;
 
-      kinematics.legInverseKinematics("RR", FR_foot).print("RR IK");
-    }
+  // tf2_ros::Buffer tfBuffer;
+  // tf2_ros::TransformListener tfListener(tfBuffer);
 
-    catch (tf2::TransformException& ex)
-    {
-      ROS_WARN_ONCE("%s", ex.what());
-    }
+  // ros::Rate rate(10);
+  // while (nh.ok())
+  // {
+  //   // const auto l1 = 0.077;
+  //   // const auto l2 = 0.211;
+  //   // const auto l3 = 0.230;
 
-    rate.sleep();
-  }
+  //   try
+  //   {
+  //     const geometry_msgs::TransformStamped T_hip_foot =
+  //         tfBuffer.lookupTransform("RR_hip0", "RR_foot", ros::Time(0));
+
+  //     vec3 FR_foot = { T_hip_foot.transform.translation.x,
+  //                      T_hip_foot.transform.translation.y,
+  //                      T_hip_foot.transform.translation.z };
+
+  //     kinematics.legInverseKinematics("RR", FR_foot).print("RR IK");
+  //   }
+
+  //   catch (tf2::TransformException& ex)
+  //   {
+  //     ROS_WARN_ONCE("%s", ex.what());
+  //   }
+
+  //   rate.sleep();
+  // }
 
   // FootTrajectory foot_traj;
 

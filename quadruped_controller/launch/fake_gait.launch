@@ -1,0 +1,20 @@
+<launch> 
+  <param name="robot_description"
+    command="$(find xacro)/xacro $(find mit_cheetah_description)/urdf/cheetah.urdf.xacro"/>
+
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+
+  <node pkg="quadruped_controller" type="fake_gait" name="fake_gait" output="screen">
+    <rosparam command="load" file="$(find quadruped_controller)/config/fake_gait.yaml" />
+  </node>
+
+  <group ns="bluetooth_teleop">
+    <rosparam command="load" file="$(find quadruped_controller)/config/teleop_ps4_walking.yaml"/>
+    <node pkg="joy" type="joy_node" name="joy_node"/>
+    <node pkg="teleop_twist_joy" type="teleop_node" name="teleop_twist_joy">
+      <remap from="cmd_vel" to="/cmd_vel"/>
+    </node>
+  </group>
+
+  <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find quadruped_controller)/config/fake_gait.rviz"/>  
+</launch>

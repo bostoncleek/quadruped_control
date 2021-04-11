@@ -226,7 +226,7 @@ int main(int argc, char** argv)
                                              kd_p, kp_w, kd_w);
 
   // Kinematic Model
-  QuadrupedKinematics kinematics;
+  const QuadrupedKinematics kinematics;
 
   // Stance base control (only when standing)
   quadruped_controller::StanceBaseControl stance_control;

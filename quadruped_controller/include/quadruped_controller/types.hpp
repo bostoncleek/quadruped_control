@@ -60,6 +60,15 @@ struct FootTrajBounds
   vec3 p_final;  // final position [x, y, z]
 };
 
+/** @brief Scheduled phases for leg*/
+struct LegScheduledPhases
+{
+  double stance_start;
+  double stance_end;
+  double swing_start;
+  double swing_end;
+};
+
 /** @brief Leg state in gait */
 enum LegState
 {
@@ -78,5 +87,9 @@ typedef std::map<std::string, FootState> FootStateMap;
 
 /** @brief map leg name to foot trajectory boundary conditions */
 typedef std::map<std::string, FootTrajBounds> FootTrajBoundsMap;
+
+/** @brief map leg name to scheduled phases */
+typedef std::map<std::string, LegScheduledPhases> ScheduledPhasesMap;
+
 }  // namespace quadruped_controller
 #endif

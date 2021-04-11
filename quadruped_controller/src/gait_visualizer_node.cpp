@@ -22,7 +22,9 @@
 #include <std_srvs/Empty.h>
 #include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Twist.h>
+#include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/MarkerArray.h>
+#include <tf2_ros/transform_broadcaster.h>
 
 // Quadruped Control
 #include <quadruped_controller/joint_controller.hpp>
@@ -46,57 +48,93 @@ using namespace quadruped_controller;
 
 static const std::string LOGNAME = "Gait Visualizer";
 
-visualization_msgs::MarkerArray
+std::vector<visualization_msgs::MarkerArray>
 footTrajViz(const FootTrajectoryManager& foot_traj_manager, const std::string& leg_name,
             double stance_phase, double t_swing)
 {
   const auto steps = 30;  // steps in trajectory for visualization
   const auto dt = (1.0 - stance_phase) / steps;
 
-  visualization_msgs::MarkerArray marker_array;
-  marker_array.markers.resize(steps);
+  visualization_msgs::MarkerArray position_marker_array;
+  visualization_msgs::MarkerArray velocity_marker_array;
+  position_marker_array.markers.resize(steps);
+  velocity_marker_array.markers.resize(steps);
 
   auto phase = stance_phase;
   for (unsigned int i = 0; i < steps; i++)
   {
     const FootState foot_state = foot_traj_manager.referenceState(leg_name, phase);
 
-    marker_array.markers.at(i).header.frame_id = "world";
-    marker_array.markers.at(i).header.stamp = ros::Time::now();
-    marker_array.markers.at(i).ns = leg_name;
+    velocity_marker_array.markers.at(i).header.frame_id =
+        position_marker_array.markers.at(i).header.frame_id = "world";
 
-    marker_array.markers.at(i).id = i;
-    marker_array.markers.at(i).type = visualization_msgs::Marker::SPHERE;
-    marker_array.markers.at(i).action = visualization_msgs::Marker::ADD;
-    marker_array.markers.at(i).pose.position.x = foot_state.position(0);
-    marker_array.markers.at(i).pose.position.y = foot_state.position(1);
-    marker_array.markers.at(i).pose.position.z = foot_state.position(2);
-    marker_array.markers.at(i).pose.orientation.w = 1.0;
-    marker_array.markers.at(i).scale.x = 0.01;
-    marker_array.markers.at(i).scale.y = 0.01;
-    marker_array.markers.at(i).scale.z = 0.01;
+    velocity_marker_array.markers.at(i).header.stamp =
+        position_marker_array.markers.at(i).header.stamp = ros::Time::now();
 
-    marker_array.markers.at(i).lifetime = ros::Duration(t_swing);  // TODO: add swing time
+    velocity_marker_array.markers.at(i).ns = position_marker_array.markers.at(i).ns =
+        leg_name;
+
+    velocity_marker_array.markers.at(i).id = position_marker_array.markers.at(i).id = i;
+
+    velocity_marker_array.markers.at(i).action =
+        position_marker_array.markers.at(i).action = visualization_msgs::Marker::ADD;
+
+    velocity_marker_array.markers.at(i).lifetime =
+        position_marker_array.markers.at(i).lifetime = ros::Duration(t_swing);
+
+    // Foot positions as points
+    position_marker_array.markers.at(i).type = visualization_msgs::Marker::SPHERE;
+    position_marker_array.markers.at(i).pose.position.x = foot_state.position(0);
+    position_marker_array.markers.at(i).pose.position.y = foot_state.position(1);
+    position_marker_array.markers.at(i).pose.position.z = foot_state.position(2);
+    position_marker_array.markers.at(i).pose.orientation.w = 1.0;
+    position_marker_array.markers.at(i).scale.x = 0.01;
+    position_marker_array.markers.at(i).scale.y = 0.01;
+    position_marker_array.markers.at(i).scale.z = 0.01;
+
+    // Foot velocities as arrows
+    // velocity_marker_array.markers.at(i).type = visualization_msgs::Marker::ARROW;
+    // velocity_marker_array.markers.at(i).pose = position_marker_array.markers.at(i).pose;
+
+    // const auto vel_mag = arma::norm(foot_state.velocity);
+    // // const auto yaw = std::acos(foot_state.velocity(0) / vel_mag); // alpha
+    // // const auto roll = std::acos(foot_state.velocity(1) / vel_mag); // beta
+    // // const auto pitch = std::acos(foot_state.velocity(2) / vel_mag); // gamma
+    // const auto yaw = std::atan2(foot_state.velocity(1), foot_state.velocity(0));
+    // const auto roll = std::atan2(foot_state.velocity(2), foot_state.velocity(1));
+    // const auto pitch = -std::asin(foot_state.velocity(2) / vel_mag);
+    // math::Quaternion quat = math::Rotation3d(roll, pitch, yaw).toQuaternion();
+
+    // velocity_marker_array.markers.at(i).pose.orientation.x = quat.x();
+    // velocity_marker_array.markers.at(i).pose.orientation.y = quat.y();
+    // velocity_marker_array.markers.at(i).pose.orientation.z = quat.z();
+    // velocity_marker_array.markers.at(i).pose.orientation.w = quat.w();
+
+    // velocity_marker_array.markers.at(i).scale.x = 0.02;
+    // velocity_marker_array.markers.at(i).scale.y = 0.005;
+    // velocity_marker_array.markers.at(i).scale.z = 0.005;
 
     if (leg_name == "FL" || leg_name == "RR")
     {
-      marker_array.markers.at(i).color.r = 1.0;
-      marker_array.markers.at(i).color.g = 0.0;
-      marker_array.markers.at(i).color.b = 0.0;
-      marker_array.markers.at(i).color.a = 1.0;
+      position_marker_array.markers.at(i).color.r = 1.0;
+      position_marker_array.markers.at(i).color.g = 0.0;
+      position_marker_array.markers.at(i).color.b = 0.0;
+      position_marker_array.markers.at(i).color.a = 1.0;
     }
     else
     {
-      marker_array.markers.at(i).color.r = 0.0;
-      marker_array.markers.at(i).color.g = 0.0;
-      marker_array.markers.at(i).color.b = 1.0;
-      marker_array.markers.at(i).color.a = 1.0;
+      position_marker_array.markers.at(i).color.r = 0.0;
+      position_marker_array.markers.at(i).color.g = 0.0;
+      position_marker_array.markers.at(i).color.b = 1.0;
+      position_marker_array.markers.at(i).color.a = 1.0;
     }
+
+    velocity_marker_array.markers.at(i).color = position_marker_array.markers.at(i).color;
 
     phase += dt;
   }
 
-  return marker_array;
+  return { position_marker_array, velocity_marker_array };
 }
 
 int main(int argc, char** argv)
@@ -105,14 +143,20 @@ int main(int argc, char** argv)
   ros::NodeHandle nh;
   ros::NodeHandle pnh("~");
 
-  ros::Publisher foot_traj_pub =
-      nh.advertise<visualization_msgs::MarkerArray>("foot_trajectory", 1);
+  ros::Publisher foot_traj_position_pub =
+      nh.advertise<visualization_msgs::MarkerArray>("foot_trajectory_markers", 1);
+
+  // ros::Publisher foot_traj_velocity_pub =
+  //     nh.advertise<visualization_msgs::MarkerArray>("foot_trajectory_velocity_markers", 1);
 
   ros::Publisher joint_state_pub =
       nh.advertise<sensor_msgs::JointState>("joint_states", 1);
 
   ros::AsyncSpinner spinner(1);
   spinner.start();
+
+  // Broadcast post of robot in world frame
+  tf2_ros::TransformBroadcaster tf_broadcaster;
 
   // Robot kinematics
   const auto base_link_name = pnh.param<std::string>("links/base_link", "trunk");
@@ -194,12 +238,22 @@ int main(int argc, char** argv)
   pnh.getParam("robot_state/orientation", orientation);
   pnh.getParam("robot_state/linear_velocity", linear_velocity);
 
-  const mat33 Rwb = math::Quaternion(orientation.at(3), orientation.at(0),
-                                     orientation.at(1), orientation.at(2))
-                        .matrix();
-
-  const vec x(position);
+  const Quaternion quat_wb = math::Quaternion(orientation.at(3), orientation.at(0),
+                                              orientation.at(1), orientation.at(2));
+  const mat33 Rwb = quat_wb.matrix();
+  vec x(position);
   const vec xdot(linear_velocity);
+
+  geometry_msgs::TransformStamped T_world_base;
+  T_world_base.header.frame_id = "world";
+  T_world_base.child_frame_id = base_link_name;
+  T_world_base.transform.translation.x = x(0);
+  T_world_base.transform.translation.y = x(1);
+  T_world_base.transform.translation.z = x(2);
+  T_world_base.transform.rotation.x = quat_wb.x();
+  T_world_base.transform.rotation.y = quat_wb.y();
+  T_world_base.transform.rotation.z = quat_wb.z();
+  T_world_base.transform.rotation.w = quat_wb.w();
 
   // Desired robot state in world frame
   std::vector<double> linear_velocity_desired = { 0.0, 0.0, 0.0 };
@@ -211,7 +265,7 @@ int main(int argc, char** argv)
   const vec w_d(angular_velocity_desired);
 
   // TODO: fix const in QuadrupedKinematics
-  QuadrupedKinematics kinematics;  // FK and IK
+  const QuadrupedKinematics kinematics;  // FK and IK
 
   // Foot start positions in world frame
   mat ft_p_init = kinematics.forwardKinematics(q_init);
@@ -234,6 +288,13 @@ int main(int argc, char** argv)
   const GaitScheduler gait_scheduler(t_swing, t_stance, phase_offset);  // gait schedule
   gait_scheduler.start();
 
+  // TODO: auto populate this
+  ScheduledPhasesMap schedule_map;
+  schedule_map.emplace("RL", LegScheduledPhases{ 0.0, 0.5, 0.5, 1.0 });
+  schedule_map.emplace("FL", LegScheduledPhases{ 0.5, 1.0, 0.0, 0.5 });
+  schedule_map.emplace("RR", LegScheduledPhases{ 0.5, 1.0, 0.0, 0.5 });
+  schedule_map.emplace("FR", LegScheduledPhases{ 0.0, 0.5, 0.5, 1.0 });
+
   while (nh.ok())
   {
     // Start planning leg swing trajectories
@@ -249,7 +310,6 @@ int main(int argc, char** argv)
     // Check if foothold planning happened
     if (foothold_final_map.empty())
     {
-      // ROS_INFO_STREAM_NAMED(LOGNAME, "Get reference foot states");
       // No planning just update reference foot states
       foot_states_map = foot_traj_manager.referenceStates(gait_map);
     }
@@ -262,22 +322,26 @@ int main(int argc, char** argv)
       {
         foot_traj_map.emplace(leg_name,
                               FootTrajBounds(foothold_start_map.at(leg_name), p_final));
-        // p_final.print(leg_name);
       }
 
-      // ROS_INFO_STREAM_NAMED(LOGNAME, "Replanning foot trajectories");
       // Will generate foot trajectories
       foot_states_map = foot_traj_manager.referenceStates(gait_map, foot_traj_map);
 
       // Visualize foot trajectories
       for (const auto& leg : foothold_final_map)
       {
-        visualization_msgs::MarkerArray marker_msg =
+        auto traj_marker_messages =
             footTrajViz(foot_traj_manager, leg.first, stance_phase, t_swing);
 
-        foot_traj_pub.publish(marker_msg);
+        foot_traj_position_pub.publish(traj_marker_messages.at(0));
+
+        // TODO: fix arrows or remove them
+        // foot_traj_velocity_pub.publish(traj_marker_messages.at(1));
       }
     }
+
+    // Foot positions of all the feet for the support polygon
+    FootholdMap foot_map;
 
     // Publish joint states
     for (const auto& [leg_name, leg_state] : gait_map)
@@ -288,7 +352,10 @@ int main(int argc, char** argv)
       {
         FootState foot_state =
             foot_traj_manager.referenceState(leg_name, gait_map.at(leg_name).second);
-        // transform foot position into body frame
+
+        foot_map.emplace(leg_name, foot_state.position);
+
+        // transform foot position into body frame for IK
         foot_state.position = inv(Rwb) * foot_state.position - x;
 
         const vec3 q = kinematics.legInverseKinematics(leg_name, foot_state.position);
@@ -305,8 +372,35 @@ int main(int argc, char** argv)
         joint_states_msg.name = leg_joints_name_map.at(leg_name);
         joint_states_msg.position = leg_joints_init_positions_map.at(leg_name);
         joint_state_pub.publish(joint_states_msg);
+
+        const vec q(leg_joints_init_positions_map.at(leg_name));
+        vec3 ft_p = kinematics.forwardKinematics(leg_name, q);
+
+        // transform foot position into world
+        ft_p = Rwb * ft_p + x;
+
+        foot_map.emplace(leg_name, ft_p);
       }
     }
+
+    SupportPolygon support_poylgon;
+    vec xy_COM_virtual = support_poylgon.position(schedule_map, foot_map, gait_map);
+
+    // if (!xy_COM_virtual.has_nan() && !xy_COM_virtual.has_inf())
+    // {
+    //   // xy_COM_virtual(0) = std::clamp(xy_COM_virtual(0), 0.0, 0.5);
+    //   // xy_COM_virtual(1) = std::clamp(xy_COM_virtual(1), 0.0, 0.5);
+
+    //   xy_COM_virtual.print("xy_COM_virtual");
+    //   // // x(0) = xy_COM_virtual(0);
+    //   x(1) = xy_COM_virtual(1);
+    //   T_world_base.transform.translation.x = xy_COM_virtual(0);
+    //   T_world_base.transform.translation.y = xy_COM_virtual(1);
+    // }
+
+    // Broadcast robot pose
+    T_world_base.header.stamp = ros::Time::now();
+    tf_broadcaster.sendTransform(T_world_base);
   }
 
   ros::waitForShutdown();
