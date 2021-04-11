@@ -70,7 +70,8 @@ void print_real_t(const real_t* const array, unsigned int n_rows, unsigned int n
 BalanceController::BalanceController(double mu, double mass, double fzmin, double fzmax,
                                      const mat& Ib, const mat& S, const mat& W,
                                      const vec& kff, const vec& kp_p, const vec& kd_p,
-                                     const vec& kp_w, const vec& kd_w)
+                                     const vec& kp_w, const vec& kd_w, 
+                                     const std::vector<std::string>& leg_names)
   : mu_(mu)
   , mass_(mass)
   , Ib_(Ib)
@@ -86,23 +87,21 @@ BalanceController::BalanceController(double mu, double mass, double fzmin, doubl
   , fzmax_(fzmax)
   , S_(S)
   , W_(W)
-  , C_(num_constraints_qp_, num_variables_qp_, arma::fill::zeros)
+  , C_(frictionConeConstraint())
   , cpu_time_(0.001)
+  , leg_names_(leg_names)
 {
   // Disable printing
   QPSolver_.setPrintLevel(qpOASES::PL_NONE);
-  // // Options options;
-  // // options.printLevel = qpOASES::PL_NONE;
-  // // options.PrintLevel = qpOASES::PL_DEBUG_ITER;
-  // // QPSolver_.setOptions( options );
-  initConstraints();
 }
 
 vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d,
                                const vec& x, const vec& xdot, const vec& w,
-                               const vec& x_d, const vec& xdot_d, const vec& w_d) const
+                               const vec& x_d, const vec& xdot_d, const vec& w_d, const GaitMap& gait_map) const
 {
   // TODO: return previouse solution if there is a failure
+
+  frictionConeBounds(gait_map);
 
   // IMPORTANT: Ground reaction forces from QP solver are in world frame
   vec fw(num_variables_qp_, arma::fill::zeros);
@@ -237,44 +236,69 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
   return std::make_tuple(A, b);
 }
 
-void BalanceController::initConstraints() const
-{
-  const auto upper = 1000000.0;
-  const auto lower = -1000000.0;
 
+mat BalanceController::frictionConeConstraint() const 
+{
   // [R1] Eq(7) and Eq(8)
   // Friction cone constraint per foot
-  const mat Ci = { { 1.0, 0.0, -mu_ },
+  const mat Cf = { { 1.0, 0.0, -mu_ },
                    { 0.0, 1.0, -mu_ },
                    { 0.0, 1.0, mu_ },
                    { 1.0, 0.0, mu_ },
                    { 0.0, 0.0, 1.0 } };
 
-  // Friction cone lower and upper limits per foot
-  const vec dli = { lower, lower, 0.0, 0.0, fzmin_ };
-  const vec dui = { 0.0, 0.0, upper, upper, fzmax_ };
-
-  // TODO: This will need to change when some feet
-  //       are not in constact with the ground.
   // Constraint matrix
-  C_.submat(0, 0, 4, 2) = Ci;
-  C_.submat(5, 3, 9, 5) = Ci;
-  C_.submat(10, 6, 14, 8) = Ci;
-  C_.submat(15, 9, 19, 11) = Ci;
+  mat C(num_constraints_qp_, num_variables_qp_, arma::fill::zeros);
+  C.submat(0, 0, 4, 2) = Cf;
+  C.submat(5, 3, 9, 5) = Cf;
+  C.submat(10, 6, 14, 8) = Cf;
+  C.submat(15, 9, 19, 11) = Cf;
 
-  // Lowwer and upper bounds on constraint matrix
+  return C;
+}
+
+void BalanceController::frictionConeBounds(const GaitMap& gait_map) const
+{
+  const auto upper = 1000000.0;
+  const auto lower = -1000000.0;
+
+  // Friction cone lower and upper limits per foot
+  const vec lbf = { lower, lower, 0.0, 0.0, fzmin_ };
+  const vec ubf = { 0.0, 0.0, upper, upper, fzmax_ };
+
+  // Lower and upper bounds on constraint matrix
   vec lbC(num_constraints_qp_);
   vec ubC(num_constraints_qp_);
 
-  lbC.rows(0, 4) = dli;
-  lbC.rows(5, 9) = dli;
-  lbC.rows(10, 14) = dli;
-  lbC.rows(15, 19) = dli;
+  unsigned int row_start = 0;
+  unsigned int row_end = 4;
 
-  ubC.rows(0, 4) = dui;
-  ubC.rows(5, 9) = dui;
-  ubC.rows(10, 14) = dui;
-  ubC.rows(15, 19) = dui;
+  for (const auto& leg_name : leg_names_)
+  {
+    if (gait_map.at(leg_name).first == LegState::swing)
+    {
+      lbC.rows(row_start, row_end).zeros();
+      ubC.rows(row_start, row_end).zeros();
+    }
+    else 
+    {
+      lbC.rows(row_start, row_end) = lbf;
+      ubC.rows(row_start, row_end) = ubf;
+    }
+
+    row_start += 5;
+    row_end += 5;
+  }
+
+  // lbC.rows(0, 4) = lbf;
+  // lbC.rows(5, 9) = lbf;
+  // lbC.rows(10, 14) = lbf;
+  // lbC.rows(15, 19) = lbf;
+
+  // ubC.rows(0, 4) = ubf;
+  // ubC.rows(5, 9) = ubf;
+  // ubC.rows(10, 14) = ubf;
+  // ubC.rows(15, 19) = ubf;
 
   copy_to_real_t(C_, qp_C_);
   copy_to_real_t(lbC, qp_lbC_);

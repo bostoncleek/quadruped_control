@@ -11,6 +11,7 @@
 #include <qpOASES.hpp>
 
 #include <quadruped_controller/math/rigid3d.hpp>
+#include <quadruped_controller/gait.hpp>
 
 namespace quadruped_controller
 {
@@ -79,10 +80,12 @@ public:
    * @param kd_p - kd gain on COM linear velocity (3x1)
    * @param kp_w - kp gain on COM orientaion (3x1)
    * @param kd_w - kd gain on COM angular velocities (3x1)
+   * @param leg_names - vector of legs names
    */
   BalanceController(double mu, double mass, double fzmin, double fzmax, const mat& Ib,
                     const mat& S, const mat& W, const vec& kff, const vec& kp_p,
-                    const vec& kd_p, const vec& kp_w, const vec& kd_w);
+                    const vec& kd_p, const vec& kp_w, const vec& kd_w,
+                    const std::vector<std::string>& leg_names);
 
   /**
    * @brief Compose ground reaction forces
@@ -95,11 +98,12 @@ public:
    * @param x_d - desired COM position in world [x, y, z] (3x1)
    * @param xdot_d - desired COM linear velocity in world [vx, vy, vz] (3x1)
    * @param w_d - desired COM angular velocity in world [wx, wy, wz] (3x1)
+   * @param gait_map - gait schedule
    * @return ground reaction forces in body frame (12x1)
    */
   vec control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d, const vec& x,
               const vec& xdot, const vec& w, const vec& x_d, const vec& xdot_d,
-              const vec& w_d) const;
+              const vec& w_d, const GaitMap& gait_map = make_stance_gait()) const;
 
 private:
   /**
@@ -117,8 +121,22 @@ private:
   tuple<mat, vec> dynamics(const mat& ft_p, const mat& Rwb, const vec& x,
                            const vec& xddot_d, const vec& wdot_d) const;
 
-  /** @brief Construct the feet friction cone and force contraints */
-  void initConstraints() const;
+private:
+  /** 
+  * @brief Construct friction cone contraint
+  * @return friction cone constraint matrix (20x12)
+  * @details The matrix diagonal contains the friction cone for each 
+  * leg and all other elements are zero. 
+  */
+  mat frictionConeConstraint() const;
+
+  /** 
+  * @brief Set friction code constraint lower and upper bounds
+  * @param gait_map - gait schedule
+  * @details If a foot is in swing phase the constraint bounds lower = upper = 0,
+  * resulting in a zero vector ground reaction force.
+  */
+  void frictionConeBounds(const GaitMap& gait_map) const;
 
 private:
   // Dynamic properties
@@ -139,14 +157,13 @@ private:
   static const uint64_t num_variables_qp_{ 12 };    // number of variable (GRFs)
   static const uint64_t num_constraints_qp_{ 20 };  // total constraints (5 per foot)
 
-  // QProblemB QPSolver_;
   mutable SQProblem QPSolver_;  // sequential QP solver
 
   int nWSR_;              // max working set recalculations
   double fzmin_, fzmax_;  // min and max normal reaction force (N)
   mat S_;                 // positive-definite weight matrix on least sqaures (6x6)
   mat W_;                 // positive-definite weight matrix on GRFs (12x12)
-  mutable mat C_;         // constraints
+  mat C_;                 // friction cone constraint matrix (20x12)
 
   real_t cpu_time_;  // max CPU time for QP solution (s)
   // QP standard form 1/2*x.T*Q*x + x.T*c
@@ -157,8 +174,8 @@ private:
   mutable real_t qp_lbC_[num_constraints_qp_];  // constraint lower bounds
   mutable real_t qp_ubC_[num_constraints_qp_];  // constraint upper bounds
 
-  // real_t qp_lb_[num_variables_qp_]; // GRF lower bounds
-  // real_t qp_ub_[num_variables_qp_]; // GRF upper bounds
+  // Robot configuration
+  std::vector<std::string> leg_names_;
 };
 }  // namespace quadruped_controller
 #endif
