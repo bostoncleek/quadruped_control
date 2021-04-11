@@ -55,7 +55,8 @@ Pose integrate_twist_yaw(const Pose& pose, const vec& u, double dt)
   // Extract yaw
   const vec3 euler_angles = pose.transform().getQuaternion().eulerAngles();
 
-  // Twb' based on yaw only
+  // Twb based on yaw only -> prevents robot from drifting in the roll
+  // and pitch axises
   const Rotation3d Rwb_yaw(0.0, 0.0, euler_angles(2));
   const Transform3d Twb_yaw(Rwb_yaw, pose.position);
 
@@ -64,6 +65,81 @@ Pose integrate_twist_yaw(const Pose& pose, const vec& u, double dt)
   const Transform3d Twbp = Twb_yaw * Transform3d(Rbbp, tbbp);
 
   return Pose(Twbp);
+}
+
+/////////////////////////////////////////////////////////
+// SupportPolygon
+SupportPolygon::SupportPolygon()
+{
+  adjacent_leg_map_.emplace("RL", std::make_pair("FL", "RR"));
+  adjacent_leg_map_.emplace("FL", std::make_pair("FR", "RL"));
+  adjacent_leg_map_.emplace("FR", std::make_pair("RR", "FL"));
+  adjacent_leg_map_.emplace("RR", std::make_pair("RL", "FR"));
+}
+
+vec SupportPolygon::position(const ScheduledPhasesMap& phase_map,
+                             const FootholdMap& foot_map, const GaitMap& gait_map) const
+{
+  // map leg name -> total weight for foot
+  std::map<std::string, double> weight_map;
+
+  // constant and add epsilon to prevent division by 0
+  const auto root2 = std::sqrt(2.0);
+
+  // Compose weights
+  for (const auto& [leg_name, adjacent_legs] : adjacent_leg_map_)
+  {
+    const auto phase = gait_map.at(leg_name).second;
+
+    auto weight = 0.0;
+    if (gait_map.at(leg_name).first == LegState::stance)
+    {
+      const auto c0 = phase_map.at(leg_name).stance_start;
+      const auto cf = phase_map.at(leg_name).stance_end;
+
+      weight = 0.5 * (std::erf(phase / (c0 * root2 + +1.0e-6)) +
+                      std::erf((1.0 - phase) / (cf * root2 + +1.0e-6)));
+    }
+    else
+    {
+      const auto s0 = phase_map.at(leg_name).swing_start;
+      const auto sf = phase_map.at(leg_name).swing_end;
+
+      weight = 0.5 * (2.0 + std::erf(-phase / (s0 * root2 + +1.0e-6)) +
+                      std::erf((phase - 1.0) / (sf * root2 + +1.0e-6)));
+    }
+
+    weight_map.emplace(leg_name, weight);
+  }
+
+  mat supports(2, 4);
+  unsigned int i = 0;
+  // Compose virtual points for all legs
+  for (const auto& [leg_name, weight] : weight_map)
+  {
+    // Only use x,y positions
+    const vec p = foot_map.at(leg_name).rows(0, 1);  // foot position
+    const vec p_minus = foot_map.at(adjacent_leg_map_.at(leg_name).first)
+                            .rows(0, 1);  // clockwise foot position
+    const vec p_plus = foot_map.at(adjacent_leg_map_.at(leg_name).second)
+                           .rows(0, 1);  // counter clockwise foot position
+
+    const vec zeta_minus = p * weight + p_minus * (1.0 - weight);
+    const vec zeta_plus = p * weight + p_plus * (1.0 - weight);
+
+    const auto w_minus = weight_map.at(adjacent_leg_map_.at(leg_name).first);
+    const auto w_plus = weight_map.at(adjacent_leg_map_.at(leg_name).second);
+
+    supports.col(i) = (1.0 / (weight + w_minus + w_plus)) * weight * p +
+                      w_minus * zeta_minus + w_plus * zeta_plus;
+    i++;
+  }
+
+  vec zeta(2);
+  zeta.row(0) = arma::sum(supports.row(0)) / 4.0;
+  zeta.row(1) = arma::sum(supports.row(1)) / 4.0;
+
+  return zeta;
 }
 
 /////////////////////////////////////////////////////////
@@ -276,21 +352,9 @@ FootStateMap FootTrajectoryManager::referenceStates(const GaitMap& gait_map) con
   {
     if (leg_state.first == LegState::swing)
     {
-      const auto search = traj_map_.find(leg_name);
-      if (search != traj_map_.end())
-      {
-        // Get reference foot states for leg
-        const FootState foot_state =
-            referenceState(leg_name, gait_map.at(leg_name).second);
-        foot_state_map.emplace(leg_name, foot_state);
-      }
-      else
-      {
-        ROS_ERROR_NAMED(LOGNAME,
-                        "Failed to find trajectory for leg: %s. May need to re-plan foot "
-                        "trajectories.",
-                        leg_name.c_str());
-      }
+      // Get reference foot states for leg
+      const FootState foot_state = referenceState(leg_name, gait_map.at(leg_name).second);
+      foot_state_map.emplace(leg_name, foot_state);
     }
   }
 
@@ -300,9 +364,19 @@ FootStateMap FootTrajectoryManager::referenceStates(const GaitMap& gait_map) con
 FootState FootTrajectoryManager::referenceState(const std::string& leg_name,
                                                 double phase) const
 {
-  // Time in the trajecotry is a function of the swing phase i.e trajectory(t(phase))
-  const auto t = slope_ * phase + y_intercept_;
-  return traj_map_.at(leg_name).trackTrajectory(t);
-}
+  const auto search = traj_map_.find(leg_name);
+  if (search != traj_map_.end())
+  {
+    // Time in the trajecotry is a function of the swing phase i.e trajectory(t(phase))
+    const auto t = slope_ * phase + y_intercept_;
+    return traj_map_.at(leg_name).trackTrajectory(t);
+  }
 
+  ROS_ERROR_NAMED(LOGNAME,
+                  "Failed to find trajectory for leg: %s. May need to re-plan foot "
+                  "trajectories.",
+                  leg_name.c_str());
+
+  return FootState();
+}
 }  // namespace quadruped_controller

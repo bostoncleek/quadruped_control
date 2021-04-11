@@ -63,6 +63,28 @@ private:
 // private:
 // };
 
+/** @brief Virtual support polygon */
+class SupportPolygon
+{
+public:
+  /** @brief Constructor */
+  SupportPolygon();
+
+  /**
+   * @brief Compose COM position
+   * @param phase_map - map leg names to scheduled contact and swing phases
+   * @param foot_map - map leg names to current foot positions
+   * @param gait_map - scheduled gait
+   * @return x,y COM position
+   */
+  vec position(const ScheduledPhasesMap& phase_map, const FootholdMap& foot_map,
+               const GaitMap& gait_map) const;
+
+private:
+  // maps leg name to adjacent legs (in order clockwise and counter clockwise)
+  std::map<std::string, std::pair<std::string, std::string>> adjacent_leg_map_;
+};
+
 /** @brief Generates a trajectory for a single foot */
 class FootTrajectory
 {
@@ -117,13 +139,43 @@ private:
 class FootTrajectoryManager
 {
 public:
+  /**
+   * @brief Constructor
+   * @param height - max height achieved at center of leg swing trajectory (m)
+   * @param t_swing - leg swing time (s)
+   * @param t_stance - leg stance time (s)
+   */
   FootTrajectoryManager(double height, double t_swing, double t_stance);
 
+  /**
+   * @brief Plans leg swing trajectory
+   * @param gait_map - gait schedule
+   * @param foot_traj_map - leg names and starting and final footholds
+   * @return FootStateMap - foot positions and velocities of feet in FootTrajBoundsMap
+   * @details Clears previous trajectories and plans new trajectories for
+   * feet in the FootTrajBoundsMap. The input feet and output feet are in
+   * the same reference frame.
+   */
   FootStateMap referenceStates(const GaitMap& gait_map,
                                const FootTrajBoundsMap& foot_traj_map) const;
 
+  /**
+   * @brief Get foot states in leg swing trajectory
+   * @param gait_map - gait schedule
+   * @return FootStateMap - foot positions and velocities
+   * @details - The returned foot states are based on the trajectory
+   * that was planned with the previous call to referenceStates(GaitMap, FootTrajBoundsMap);
+   */
   FootStateMap referenceStates(const GaitMap& gait_map) const;
 
+  /**
+   * @brief Get foot states in leg swing trajectory
+   * @param leg_name - leg name
+   * @param phase - phase of leg in trajectory
+   * @return FootState - foot position and velocity
+   * @details If the leg name does not have a trajectory and empty
+   * foot state is returned and an error is thrown.
+   */
   FootState referenceState(const std::string& leg_name, double phase) const;
 
 private:

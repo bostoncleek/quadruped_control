@@ -110,10 +110,10 @@ void GaitScheduler::update(double dt) const
   phases_(3) = std::fmod(phases_(3), 1.0);
 }
 
-LegState GaitScheduler::phase(double angle) const
+LegState GaitScheduler::phase(double phase) const
 {
-  if ((angle > 0.0 || almost_equal(angle, 0.0)) &&
-      (angle < stance_phase_ || almost_equal(angle, stance_phase_)))
+  if ((phase > 0.0 || almost_equal(phase, 0.0)) &&
+      (phase < stance_phase_ || almost_equal(phase, stance_phase_)))
   {
     return LegState::stance;
   }

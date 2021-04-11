@@ -30,21 +30,41 @@ public:
    */
   GaitScheduler(double t_swing, double t_stance, const vec& offset);
 
+  /** @brief Destructor */
   virtual ~GaitScheduler();
 
+  /** @brief Starts periodic gait */
   void start() const;
 
+  /** @brief Stops periodic gait */
   void stop() const;
 
+  /**
+   * @brief Reset gait schedule to phase offsets
+   * @details A call to stop() must be made first
+   */
   void reset() const;
 
+  /** @brief Get the current gait schedule */
   GaitMap schedule() const;
 
 private:
+  /** @brief Run gait schedule in a separate thread */
   void execute() const;
 
+  /**
+   * @brief Update phases
+   * @param dt - time lapse since last call (s)
+   */
   void update(double dt) const;
 
+  /**
+   * @brief Compose state of leg
+   * @param phase - current leg phase
+   * @return leg is either swing or stance
+   * @details If phase : [0 stance_phase] leg is in stance.
+   * Once the phase > stance_phase the leg is in swing.
+   */
   LegState phase(double angle) const;
 
 private:
