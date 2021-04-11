@@ -59,6 +59,12 @@ int main(int argc, char** argv)
   SupportPolygon support_poylgon;
   support_poylgon.position(schedule_map, foot_map, gait_map).print();
 
+  if (auto a = 1.0; a > 0.5)
+  {
+    std::cout << "a: " << a << std::endl;
+  }
+  // std::cout << "a: " << a << std::endl;
+
   // ros::AsyncSpinner spinner(1);
   // spinner.start();
 

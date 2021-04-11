@@ -16,6 +16,8 @@
 // Linear Algebra
 #include <armadillo>
 
+#include <quadruped_controller/types.hpp>
+
 namespace quadruped_controller
 {
 using arma::mat;
@@ -48,6 +50,14 @@ public:
   vec3 forwardKinematics(const std::string& leg_name, const vec3& q) const;
 
   /**
+   * @brief Compose forward kinematics
+   * @param joint_states_map - map leg names to joint states
+   * @return foot positions [x, y, z] for every leg in JointStatesMap in the body frame
+   * @details only the joint angular positions are used
+   */
+  FootholdMap forwardKinematics(const JointStatesMap& joint_states_map) const;
+
+  /**
    * @brief Inverse kinematics for a single leg
    * @param leg_name - name of leg
    * @param trans_bh - translation from base_link to hip link
@@ -74,6 +84,15 @@ public:
    * each force is of the format [fx, fy, fz] in the body frame.
    */
   vec jacobianTransposeControl(const vec& q, const vec& f) const;
+
+  /**
+   * @brief Compose the joint torques
+   * @param joint_states_map - map leg names to joint states
+   * @param force_map - ground reaction forces in body frame [fx, fy, fz]
+   * @return joint torques [hip, thigh, calf]
+   */
+  TorqueMap jacobianTransposeControl(const JointStatesMap& joint_states_map,
+                                     const ForceMap& force_map) const;
 
 private:
   // Map leg name to leg link configuration and translation from base to hip

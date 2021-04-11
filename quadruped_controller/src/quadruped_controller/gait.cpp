@@ -21,6 +21,18 @@ using math::PI;
 
 static const std::string LOGNAME = "Gait Scheduler";
 
+GaitMap make_stance_gait()
+{
+  GaitMap gait_map;
+
+  gait_map.emplace("RL", std::make_pair(LegState::stance, 0.0));
+  gait_map.emplace("FL", std::make_pair(LegState::stance, 0.0));
+  gait_map.emplace("RR", std::make_pair(LegState::stance, 0.0));
+  gait_map.emplace("FR", std::make_pair(LegState::stance, 0.0));
+
+  return gait_map;
+}
+
 GaitScheduler::GaitScheduler(double t_swing, double t_stance, const vec& offset)
   : t_swing_(t_swing)
   , t_stance_(t_stance)

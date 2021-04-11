@@ -89,7 +89,6 @@ public:
 
   /**
    * @brief Compose ground reaction forces
-   * @param ft_p - postions of feet in body frame (COM) (3x4)
    * @param Rwb - rotation from world to base_link (3x3)
    * @param Rwb_d - desired rotation from world to base_link (3x3)
    * @param x - COM position in world [x, y, z] (3x1)
@@ -98,17 +97,19 @@ public:
    * @param x_d - desired COM position in world [x, y, z] (3x1)
    * @param xdot_d - desired COM linear velocity in world [vx, vy, vz] (3x1)
    * @param w_d - desired COM angular velocity in world [wx, wy, wz] (3x1)
+   * @param foot_map - postions of feet in body frame
    * @param gait_map - gait schedule
    * @return ground reaction forces in body frame (12x1)
    */
-  vec control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d, const vec& x,
-              const vec& xdot, const vec& w, const vec& x_d, const vec& xdot_d,
-              const vec& w_d, const GaitMap& gait_map = make_stance_gait()) const;
+  ForceMap control(const mat& Rwb, const mat& Rwb_d, const vec& x, const vec& xdot,
+                   const vec& w, const vec& x_d, const vec& xdot_d, const vec& w_d,
+                   const FootholdMap& foot_map,
+                   const GaitMap& gait_map = make_stance_gait()) const;
 
 private:
   /**
    * @brief Compose linear Newton-Euler single rigid body dynamics
-   * @param ft_p - postions of feet body frame (COM)  (3x4)
+   * @param ft_p - postions of feet body frame (3x4)
    * @param Rwb - rotation from world to base_link (3x3)
    * @param x - COM position in world [x, y, z] (3x1)
    * @param xddot_d - desired COM linear acceleration (3x1)
@@ -122,20 +123,20 @@ private:
                            const vec& xddot_d, const vec& wdot_d) const;
 
 private:
-  /** 
-  * @brief Construct friction cone contraint
-  * @return friction cone constraint matrix (20x12)
-  * @details The matrix diagonal contains the friction cone for each 
-  * leg and all other elements are zero. 
-  */
+  /**
+   * @brief Construct friction cone contraint
+   * @return friction cone constraint matrix (20x12)
+   * @details The matrix diagonal contains the friction cone for each
+   * leg and all other elements are zero.
+   */
   mat frictionConeConstraint() const;
 
-  /** 
-  * @brief Set friction code constraint lower and upper bounds
-  * @param gait_map - gait schedule
-  * @details If a foot is in swing phase the constraint bounds lower = upper = 0,
-  * resulting in a zero vector ground reaction force.
-  */
+  /**
+   * @brief Set friction code constraint lower and upper bounds
+   * @param gait_map - gait schedule
+   * @details If a foot is in swing phase the constraint bounds lower = upper = 0,
+   * resulting in a zero vector ground reaction force.
+   */
   void frictionConeBounds(const GaitMap& gait_map) const;
 
 private:

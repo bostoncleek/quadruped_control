@@ -42,12 +42,8 @@ using arma::mat;
 using arma::vec;
 using arma::vec3;
 
-using quadruped_controller::BalanceController;
-using quadruped_controller::JointController;
-using quadruped_controller::QuadrupedKinematics;
-using quadruped_controller::math::Pose;
-using quadruped_controller::math::Quaternion;
-using quadruped_controller::math::Rotation3d;
+using namespace quadruped_controller;
+using namespace math;
 
 const static std::string LOGNAME = "commander";
 
@@ -56,9 +52,12 @@ static bool com_state_received = false;
 static bool stand_cmd_received = false;
 static bool cmd_vel_received = false;
 
+// IMPORTANT: Most of the software has been configured to run
+//            with these joint names and in this order
+static std::vector<std::string> leg_names = { "RL", "FL", "RR", "FR" };
+
 // Actual State
-static vec q(12, arma::fill::zeros);     // joint angles
-static vec qdot(12, arma::fill::zeros);  // joint velocities
+static JointStatesMap joint_states_map;  // q and qdot
 
 static mat Rwb = eye(3, 3);           // COM orientation
 static vec3 x(arma::fill::zeros);     // COM position
@@ -74,40 +73,40 @@ void jointCallback(const sensor_msgs::JointState::ConstPtr& msg)
   joint_states_received = true;
 
   // RL
-  q(0) = msg->position.at(0);  // RL_hip_joint
-  q(1) = msg->position.at(4);  // RL_thigh_joint
-  q(2) = msg->position.at(8);  // RL_calf_joint
+  joint_states_map.at("RL").q(0) = msg->position.at(0);  // RL_hip_joint
+  joint_states_map.at("RL").q(1) = msg->position.at(4);  // RL_thigh_joint
+  joint_states_map.at("RL").q(2) = msg->position.at(8);  // RL_calf_joint
 
-  qdot(0) = msg->velocity.at(0);
-  qdot(1) = msg->velocity.at(4);
-  qdot(2) = msg->velocity.at(8);
+  joint_states_map.at("RL").qdot(0) = msg->velocity.at(0);  // FL_hip_joint
+  joint_states_map.at("RL").qdot(1) = msg->velocity.at(4);  // FL_thigh_joint
+  joint_states_map.at("RL").qdot(2) = msg->velocity.at(8);  // FL_calf_joint
 
   // FL
-  q(3) = msg->position.at(1);  // FL_hip_joint
-  q(4) = msg->position.at(5);  // FL_thigh_joint
-  q(5) = msg->position.at(9);  // FL_calf_joint
+  joint_states_map.at("FL").q(0) = msg->position.at(1);
+  joint_states_map.at("FL").q(1) = msg->position.at(5);
+  joint_states_map.at("FL").q(2) = msg->position.at(9);
 
-  qdot(3) = msg->velocity.at(1);
-  qdot(4) = msg->velocity.at(5);
-  qdot(5) = msg->velocity.at(9);
+  joint_states_map.at("FL").qdot(0) = msg->velocity.at(1);
+  joint_states_map.at("FL").qdot(1) = msg->velocity.at(5);
+  joint_states_map.at("FL").qdot(2) = msg->velocity.at(9);
 
   // RR
-  q(6) = msg->position.at(2);   // RR_hip_joint
-  q(7) = msg->position.at(6);   // RR_thigh_joint
-  q(8) = msg->position.at(10);  // RR_calf_joint
+  joint_states_map.at("RR").q(0) = msg->position.at(2);
+  joint_states_map.at("RR").q(1) = msg->position.at(6);
+  joint_states_map.at("RR").q(2) = msg->position.at(10);
 
-  qdot(6) = msg->velocity.at(2);
-  qdot(7) = msg->velocity.at(6);
-  qdot(8) = msg->velocity.at(10);
+  joint_states_map.at("RR").qdot(0) = msg->velocity.at(2);
+  joint_states_map.at("RR").qdot(1) = msg->velocity.at(6);
+  joint_states_map.at("RR").qdot(2) = msg->velocity.at(10);
 
   // FR
-  q(9) = msg->position.at(3);    // FR_hip_joint
-  q(10) = msg->position.at(7);   // FR_thigh_joint
-  q(11) = msg->position.at(11);  // FR_calf_joint
+  joint_states_map.at("FR").q(0) = msg->position.at(3);
+  joint_states_map.at("FR").q(1) = msg->position.at(7);
+  joint_states_map.at("FR").q(2) = msg->position.at(11);
 
-  qdot(9) = msg->velocity.at(3);
-  qdot(10) = msg->velocity.at(7);
-  qdot(11) = msg->velocity.at(11);
+  joint_states_map.at("FR").qdot(0) = msg->velocity.at(3);
+  joint_states_map.at("FR").qdot(1) = msg->velocity.at(7);
+  joint_states_map.at("FR").qdot(2) = msg->velocity.at(11);
 }
 
 void stateCallback(const quadruped_msgs::CoMState::ConstPtr& msg)
@@ -170,11 +169,36 @@ int main(int argc, char** argv)
   ros::AsyncSpinner spinner(2);
   spinner.start();
 
+  // Configure initial joint states to zeros
+  for (const auto& leg_name : leg_names)
+  {
+    joint_states_map.emplace(leg_name, LegJointStates());
+  }
+
   // Robot joint configuration
-  // const auto num_joints =
-  //     static_cast<unsigned int>(pnh.param<int>("joints/num_joints", 12));
+  const auto num_joints =
+      static_cast<unsigned int>(pnh.param<int>("joints/num_joints", 12));
   std::vector<std::string> joint_actuator_names;
   pnh.getParam("joints/joint_actuator_names", joint_actuator_names);
+
+  // map leg name to actuator names
+  std::map<std::string, std::vector<std::string>> actuator_map;
+  actuator_map.emplace(leg_names.at(0),
+                       std::vector<std::string>{ joint_actuator_names.at(0),
+                                                 joint_actuator_names.at(1),
+                                                 joint_actuator_names.at(2) });
+  actuator_map.emplace(leg_names.at(1),
+                       std::vector<std::string>{ joint_actuator_names.at(3),
+                                                 joint_actuator_names.at(4),
+                                                 joint_actuator_names.at(5) });
+  actuator_map.emplace(leg_names.at(2),
+                       std::vector<std::string>{ joint_actuator_names.at(6),
+                                                 joint_actuator_names.at(7),
+                                                 joint_actuator_names.at(8) });
+  actuator_map.emplace(leg_names.at(3),
+                       std::vector<std::string>{ joint_actuator_names.at(9),
+                                                 joint_actuator_names.at(10),
+                                                 joint_actuator_names.at(11) });
 
   // Robot controller
   double w_diagonal = 1e-5;
@@ -223,16 +247,13 @@ int main(int argc, char** argv)
 
   // GRF Control
   const BalanceController balance_controller(mu, mass, fzmin, fzmax, Ib, S, W, kff, kp_p,
-                                             kd_p, kp_w, kd_w);
+                                             kd_p, kp_w, kd_w, leg_names);
 
   // Kinematic Model
   const QuadrupedKinematics kinematics;
 
-  // Stance base control (only when standing)
-  quadruped_controller::StanceBaseControl stance_control;
-
   // User cmd integration step
-  const auto dt = 0.05;
+  // const auto dt = 0.05;
 
   // Hard code the desired COM state to standing configuration
   mat Rwb_d = eye(3, 3);           // base orientation in world
@@ -249,74 +270,55 @@ int main(int argc, char** argv)
   x_d = x_stand;
   bool standing = false;
 
+  // stance gait used to get robot into standing configuration
+  GaitMap gait_map = make_stance_gait();
+
   ros::Rate rate(frequency);
   while (nh.ok())
   {
+    // Signaled to stand
     if (stand_cmd_received)
     {
+      // Robot state is known
       if (joint_states_received && com_state_received)
       {
+        // Robot is standing
         if (quadruped_controller::math::almost_equal(x(2), x_stand(2), 0.005) && !standing)
         {
-          const Pose pose(Rwb, x);
-          stance_control.setPose(pose);
-
           ROS_INFO_STREAM_NAMED(LOGNAME, "Standing height achieved");
           standing = true;
         }
 
-        // Set desired states base on user cmd
-        if (cmd_vel_received && standing)
-        {
-          // Walking control configuration
-          // const vec cmd = {Vb(0), Vb(1), Vb(2), 0.0, 0.0, Vb(5)};
+        // FK in body frame
+        const FootholdMap foot_FK = kinematics.forwardKinematics(joint_states_map);
 
-          // Standing control configuration
-          const vec cmd = { 0.0, 0.0, Vb(2), Vb(3), Vb(4), Vb(5) };
+        // Optimize GRF for stance legs
+        const ForceMap force_map = balance_controller.control(
+            Rwb, Rwb_d, x, xdot, w, x_d, xdot_d, w_d, foot_FK, gait_map);
 
-          const Pose pose(Rwb, x);
+        // Only use for stance legs
+        TorqueMap torque_map =
+            kinematics.jacobianTransposeControl(joint_states_map, force_map);
 
-          // Do not update the pose every iteration -> prevents drift
-          const Pose pose_desired = stance_control.integrateTwist(pose, cmd, dt);
-
-          // Desired pose
-          Rwb_d = pose_desired.orientation.matrix();
-          x_d = pose_desired.position;
-
-          // Desired velocities
-          const vec Vw = pose.transform().adjoint() * cmd;
-          xdot_d = Vw.rows(0, 2);
-          w_d = Vw.rows(3, 5);
-
-          std::cout << "Trunk height: " << x(2) << std::endl;
-          std::cout << "Desired Trunk height: " << x_d(2) << std::endl;
-
-          // (pose.orientation.eulerAngles() * 180.0 / M_PI).print("actual orientation
-          // (deg)"); pose.position.print("actual position (m)");
-
-          // (pose_desired.orientation.eulerAngles() * 180.0 / M_PI).print("orientation
-          // desired (deg)"); pose_desired.position.print("position desired (m)");
-
-          cmd_vel_received = false;
-        }
-
-        const mat ft_p = kinematics.forwardKinematics(q);
-        // ft_p.print("ft_p");
-
-        const vec fb =
-            balance_controller.control(ft_p, Rwb, Rwb_d, x, xdot, w, x_d, xdot_d, w_d);
-        // fb.print("fb");
-
-        // TODO: try J^-1 for better performance
-        vec tau = kinematics.jacobianTransposeControl(q, fb);
-
-        // Torque limits
-        tau = arma::clamp(tau, tau_min, tau_max);
-        // tau.print("tau");
-
+        // Send control signal
         quadruped_msgs::JointTorqueCmd joint_cmd;
-        joint_cmd.actuator_name = joint_actuator_names;
-        joint_cmd.torque = arma::conv_to<std::vector<double>>::from(tau);
+        // joint_cmd.actuator_name.resize(num_joints);
+        // joint_cmd.torque.resize(num_joints);
+
+        for (const auto& [leg_name, torque] : torque_map)
+        {
+          joint_cmd.actuator_name.insert(joint_cmd.actuator_name.end(),
+                                         actuator_map.at(leg_name).begin(),
+                                         actuator_map.at(leg_name).end());
+
+          // Torque limits
+          const vec3 tau = arma::clamp(torque, tau_min, tau_max);
+          const std::vector<double> tau_vec =
+              arma::conv_to<std::vector<double>>::from(tau);
+          // tau.print("tau");
+
+          joint_cmd.torque.insert(joint_cmd.torque.end(), tau_vec.begin(), tau_vec.end());
+        }
 
         joint_cmd_pub.publish(joint_cmd);
       }

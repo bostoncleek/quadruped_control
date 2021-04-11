@@ -17,6 +17,9 @@
 
 namespace quadruped_controller
 {
+/** @brief Compose a pure stance gait with all phases set to zero */
+GaitMap make_stance_gait();
+
 /** @brief Scheduler leg swing and stance phases*/
 class GaitScheduler
 {

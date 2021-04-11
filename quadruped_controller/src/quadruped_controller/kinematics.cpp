@@ -102,6 +102,18 @@ vec3 QuadrupedKinematics::forwardKinematics(const std::string& leg_name,
   return foot_position;
 }
 
+FootholdMap
+QuadrupedKinematics::forwardKinematics(const JointStatesMap& joint_states_map) const
+{
+  FootholdMap foot_hold_map;
+  for (const auto& [leg_name, joint_states] : joint_states_map)
+  {
+    foot_hold_map.emplace(leg_name, forwardKinematics(leg_name, joint_states.q));
+  }
+
+  return foot_hold_map;
+}
+
 vec3 QuadrupedKinematics::legInverseKinematics(const std::string& leg_name,
                                                const vec3& foothold) const
 {
@@ -191,4 +203,20 @@ vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f) co
 
   return tau;
 }
+
+TorqueMap
+QuadrupedKinematics::jacobianTransposeControl(const JointStatesMap& joint_states_map,
+                                              const ForceMap& force_map) const
+{
+  TorqueMap torque_map;
+  for (const auto& [leg_name, joint_states] : joint_states_map)
+  {
+    const mat33 J = legJacobian(leg_name, joint_states.q);
+    const vec3 tau = J.t() * force_map.at(leg_name);
+    torque_map.emplace(leg_name, tau);
+  }
+
+  return torque_map;
+}
+
 }  // namespace quadruped_controller

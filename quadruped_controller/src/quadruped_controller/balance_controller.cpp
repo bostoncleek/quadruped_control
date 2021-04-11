@@ -70,7 +70,7 @@ void print_real_t(const real_t* const array, unsigned int n_rows, unsigned int n
 BalanceController::BalanceController(double mu, double mass, double fzmin, double fzmax,
                                      const mat& Ib, const mat& S, const mat& W,
                                      const vec& kff, const vec& kp_p, const vec& kd_p,
-                                     const vec& kp_w, const vec& kd_w, 
+                                     const vec& kp_w, const vec& kd_w,
                                      const std::vector<std::string>& leg_names)
   : mu_(mu)
   , mass_(mass)
@@ -95,12 +95,27 @@ BalanceController::BalanceController(double mu, double mass, double fzmin, doubl
   QPSolver_.setPrintLevel(qpOASES::PL_NONE);
 }
 
-vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d,
-                               const vec& x, const vec& xdot, const vec& w,
-                               const vec& x_d, const vec& xdot_d, const vec& w_d, const GaitMap& gait_map) const
+ForceMap BalanceController::control(const mat& Rwb, const mat& Rwb_d, const vec& x,
+                                    const vec& xdot, const vec& w, const vec& x_d,
+                                    const vec& xdot_d, const vec& w_d,
+                                    const FootholdMap& foot_map,
+                                    const GaitMap& gait_map) const
 {
   // TODO: return previouse solution if there is a failure
 
+  ForceMap force_map;
+  mat ft_p(3, 4, arma::fill::zeros);
+
+  for (unsigned int i = 0; i < leg_names_.size(); i++)
+  {
+    // Inialize return value to zeros if failure
+    force_map.emplace(leg_names_.at(i), vec3(arma::fill::zeros));
+
+    // Populate foot positions
+    ft_p.col(i) = foot_map.at(leg_names_.at(i));
+  }
+
+  // compose friction cone constraint bounds
   frictionConeBounds(gait_map);
 
   // IMPORTANT: Ground reaction forces from QP solver are in world frame
@@ -160,7 +175,8 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
     {
       ROS_ERROR_STREAM_NAMED(LOGNAME,
                              "Failed to initialize Balance Controller QP Solver");
-      return fw;
+
+      return force_map;
     }
   }
 
@@ -173,7 +189,7 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
     if (ret_val != qpOASES::SUCCESSFUL_RETURN)
     {
       ROS_ERROR_STREAM_NAMED(LOGNAME, "Failed to hotstart Balance Controller QP Solver");
-      return fw;
+      return force_map;
     }
   }
 
@@ -188,19 +204,30 @@ vec BalanceController::control(const mat& ft_p, const mat& Rwb, const mat& Rwb_d
   else
   {
     ROS_ERROR_STREAM_NAMED(LOGNAME, "Balance Controller QP Solver Failed");
-    return fw;
+    return force_map;
   }
 
-  // Negate force directions and transform into body frame
   const mat Rbw = Rwb.t();
-  vec fb(num_variables_qp_);
+  // vec fb(num_variables_qp_);
 
-  fb.rows(0, 2) = Rbw * fw.rows(0, 2);
-  fb.rows(3, 5) = Rbw * fw.rows(3, 5);
-  fb.rows(6, 8) = Rbw * fw.rows(6, 8);
-  fb.rows(9, 11) = Rbw * fw.rows(9, 11);
+  // fb.rows(0, 2) = -1.0 * Rbw * fw.rows(0, 2);
+  // fb.rows(3, 5) = -1.0 * Rbw * fw.rows(3, 5);
+  // fb.rows(6, 8) = -1.0 * Rbw * fw.rows(6, 8);
+  // fb.rows(9, 11) = -1.0 * Rbw * fw.rows(9, 11);
 
-  return -1.0 * fb;
+  unsigned int row = 0;
+  unsigned int col = 2;
+  for (const auto& leg_name : leg_names_)
+  {
+    // Negate force directions and transform into body frame
+    const vec3 fb = -1.0 * Rbw * fw.rows(row, col);
+    force_map.at(leg_name) = fb;
+
+    row += 3;
+    col += 3;
+  }
+
+  return force_map;
 }
 
 tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, const vec& x,
@@ -236,8 +263,7 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
   return std::make_tuple(A, b);
 }
 
-
-mat BalanceController::frictionConeConstraint() const 
+mat BalanceController::frictionConeConstraint() const
 {
   // [R1] Eq(7) and Eq(8)
   // Friction cone constraint per foot
@@ -280,7 +306,7 @@ void BalanceController::frictionConeBounds(const GaitMap& gait_map) const
       lbC.rows(row_start, row_end).zeros();
       ubC.rows(row_start, row_end).zeros();
     }
-    else 
+    else
     {
       lbC.rows(row_start, row_end) = lbf;
       ubC.rows(row_start, row_end) = ubf;
@@ -289,16 +315,6 @@ void BalanceController::frictionConeBounds(const GaitMap& gait_map) const
     row_start += 5;
     row_end += 5;
   }
-
-  // lbC.rows(0, 4) = lbf;
-  // lbC.rows(5, 9) = lbf;
-  // lbC.rows(10, 14) = lbf;
-  // lbC.rows(15, 19) = lbf;
-
-  // ubC.rows(0, 4) = ubf;
-  // ubC.rows(5, 9) = ubf;
-  // ubC.rows(10, 14) = ubf;
-  // ubC.rows(15, 19) = ubf;
 
   copy_to_real_t(C_, qp_C_);
   copy_to_real_t(lbC, qp_lbC_);
