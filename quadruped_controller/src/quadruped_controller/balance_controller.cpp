@@ -88,7 +88,7 @@ BalanceController::BalanceController(double mu, double mass, double fzmin, doubl
   , S_(S)
   , W_(W)
   , C_(frictionConeConstraint())
-  , cpu_time_(0.001)
+  , cpu_time_(0.01)  // run QP at 100 Hz
   , leg_names_(leg_names)
 {
   // Disable printing
@@ -109,7 +109,7 @@ ForceMap BalanceController::control(const mat& Rwb, const mat& Rwb_d, const vec&
   for (unsigned int i = 0; i < leg_names_.size(); i++)
   {
     // Inialize return value to zeros if failure
-    force_map.emplace(leg_names_.at(i), vec3(arma::fill::zeros));
+    // force_map.emplace(leg_names_.at(i), vec3(arma::fill::zeros));
 
     // Populate foot positions
     ft_p.col(i) = foot_map.at(leg_names_.at(i));
@@ -134,11 +134,14 @@ ForceMap BalanceController::control(const mat& Rwb, const mat& Rwb_d, const vec&
 
   // TODO: verify that angleAxisTotal() should be used here
   vec wdot_d = kp_w_ % R_error.angleAxisTotal() + kd_w_ % (w_d - w);
-  wdot_d += kff_.rows(3, 5) % w_d;
+  wdot_d(0) += kff_(3) * w_d(0);
+  wdot_d(1) += kff_(4) * w_d(1);
+  wdot_d(1) += kff_(5) * w_d(2);
+
   // wdot_d.print("wdot_d");
 
   // [R1] Eq(5) Linear Newton-Euler single rigid body dynamics
-  const auto srb_dyn = dynamics(ft_p, Rwb, x, xddot_d, wdot_d);
+  const auto srb_dyn = dynamics(ft_p, Rwb, x, xddot_d, w_d, wdot_d);
   const mat A_dyn = std::get<mat>(srb_dyn);
   const vec b_dyn = std::get<vec>(srb_dyn);
 
@@ -148,6 +151,11 @@ ForceMap BalanceController::control(const mat& Rwb, const mat& Rwb_d, const vec&
   // c = -2*A.T*S*b (12x1)
   const mat Q = 2.0 * (A_dyn.t() * S_ * A_dyn + W_);
   const vec c = -2.0 * A_dyn.t() * S_ * b_dyn;
+
+  if (!Q.is_sympd())
+  {
+    ROS_ERROR_STREAM_NAMED(LOGNAME, "Q is NOT semipositive definite");
+  }
 
   copy_to_real_t(Q, qp_Q_);
   copy_to_real_t(c, qp_c_);
@@ -208,20 +216,16 @@ ForceMap BalanceController::control(const mat& Rwb, const mat& Rwb_d, const vec&
   }
 
   const mat Rbw = Rwb.t();
-  // vec fb(num_variables_qp_);
-
-  // fb.rows(0, 2) = -1.0 * Rbw * fw.rows(0, 2);
-  // fb.rows(3, 5) = -1.0 * Rbw * fw.rows(3, 5);
-  // fb.rows(6, 8) = -1.0 * Rbw * fw.rows(6, 8);
-  // fb.rows(9, 11) = -1.0 * Rbw * fw.rows(9, 11);
-
   unsigned int row = 0;
   unsigned int col = 2;
   for (const auto& leg_name : leg_names_)
   {
-    // Negate force directions and transform into body frame
-    const vec3 fb = -1.0 * Rbw * fw.rows(row, col);
-    force_map.at(leg_name) = fb;
+    if (gait_map.at(leg_name).first == LegState::stance)
+    {
+      // Negate force directions and transform into body frame
+      const vec3 fb = -1.0 * Rbw * fw.rows(row, col);
+      force_map.emplace(leg_name, fb);
+    }
 
     row += 3;
     col += 3;
@@ -231,7 +235,8 @@ ForceMap BalanceController::control(const mat& Rwb, const mat& Rwb_d, const vec&
 }
 
 tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, const vec& x,
-                                            const vec& xddot_d, const vec& wdot_d) const
+                                            const vec& xddot_d, const vec& w_d,
+                                            const vec& wdot_d) const
 {
   // TODO: verify this is correct the feet are already in the body frame
   // Vector from COM to each foot position in world frame
@@ -258,7 +263,10 @@ tuple<mat, vec> BalanceController::dynamics(const mat& ft_p, const mat& Rwb, con
 
   vec b(num_equations_qp_, arma::fill::zeros);
   b.rows(0, 2) = mass_ * (xddot_d + g_);
-  b.rows(3, 5) = Iw * wdot_d;
+
+  // TODO: verify convexity of cost function
+  // Add cross product term
+  b.rows(3, 5) = Iw * wdot_d + arma::cross(w_d, Iw * w_d);
 
   return std::make_tuple(A, b);
 }

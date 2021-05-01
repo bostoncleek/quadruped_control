@@ -1,9 +1,23 @@
+
+# frequency: control loop frequenct (Hz)
+frequency: 300.0 
+
 # Kinematic configuration for the MIT cheetah 
 # initial postion: x,y,z
 # initial orientation: x,y,z,w
 initial_pose:
-  postion: [0.0, 0.0, 0.06] 
+  position: [0.0, 0.0, 0.06] 
   orientation: [0.0, 0.0, 0.0, 1.0]
+
+# t_stance: time in stance phase (s)
+# t_swing: time in swing phase (s)
+# height: max height achieved at center of leg swing trajectory (m)
+# gait_offset_phases: for legs [RL FL RR FR] in domain [0 1]
+gait:
+  t_stance: 0.8
+  t_swing: 0.18
+  height: 0.08
+  gait_offset_phases: [0.0, 0.5, 0.5, 0.0]
 
 # base_link: base_link frame
 links:
@@ -33,7 +47,13 @@ joints:
   # Maps to joint actuator names 
   init_joint_torques: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
 
-# frequency: balance control loop frequenct (Hz)
+joint_control:
+  kff: [0.0, 0.0, 0.0]
+  kp: [40.0, 40.0, 50.0]
+  kd: [1.0, 1.0, 1.0]
+  # kp: [30.0, 30.0, 30.0]
+  # kd: [0.5, 0.5, 0.5]
+
 # torque_min: minimum joint torque (N*m)
 # torque_max: maximum joint torque (N*m)
 # s_diagonal: diagonal weights on least squares (Ax-b)*S*(Ax-b)
@@ -44,20 +64,27 @@ joints:
 # kd_p: COM linear velocity Kd
 # kd_w: COM angular velocity Kd
 balance_control:
-  frequency: 100.0 
   torque_min: -20.0
   torque_max: 20.0
 
   # Standing 
   s_diagonal: [1.0, 1.0, 1.0, 10.0, 10.0, 5.0]
+  # s_diagonal: [0.5, 0.5, 0.5, 20.0, 20.0, 10.0]
   w_diagonal: [0.00001]
   
   kff: [0.0, 0.0, 0.15, 0.0, 0.0, 0.0]
-  kp_p: [100.0, 100.0, 150.0]
-  kp_w: [3000.0, 3000.0, 3000.0]
+  # kp_p: [100.0, 100.0, 150.0]
+  # kp_w: [3000.0, 3000.0, 3000.0]
+
+  # kd_p: [50.0, 50.0, 50.0]
+  # kd_w: [250.0, 250.0, 250.0]
+
+  kp_p: [100.0, 100.0, 100.0]
+  kp_w: [5000.0, 5000.0, 5000.0]
 
   kd_p: [50.0, 50.0, 50.0]
-  kd_w: [250.0, 250.0, 250.0]
+  kd_w: [500.0, 500.0, 500.0]
+
 
 # Ib: moment of inertia in body frame (kg*m2)
 # mass: total mass (kg)
@@ -67,6 +94,6 @@ balance_control:
 dynamics: 
   Ib: [0.011253, 0.036203, 0.042673]
   mass: 11.0  
-  mu: 0.8 
+  mu: 0.8
   fzmin: 10.0 
-  fzmax: 160.0
+  fzmax: 120.0

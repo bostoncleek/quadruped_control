@@ -13,4 +13,6 @@
       <remap from="cmd_vel" to="/cmd_vel"/>
     </node>
   </group>
+
+  <node name="rviz" pkg="rviz" type="rviz" required="true" args="-d $(find quadruped_controller)/config/cheetah.rviz"/>  
 </launch>

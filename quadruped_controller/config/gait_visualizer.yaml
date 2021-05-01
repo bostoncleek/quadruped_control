@@ -1,16 +1,20 @@
-# initial postion: x, y, z
+# Robot state in world frame
+# initial postion: x, y, z (m)
 # initial orientation: x, y, z, w
-# linear_velocity: vx, vy, vz
+# linear_velocity: vx, vy, vz (m/s)
+# rotational_velocity: wx, wy, wz (rad/s)
 robot_state:
   position: [0.0, 0.0, 0.2429] 
   orientation: [0.0, 0.0, 0.0, 1.0]
   linear_velocity: [0.1, 0.0, 0.0]
-  
+  angular_velocity: [0.0, 0.0, 0.0]
+
+# Robot command in world frame
 # linear_velocity: vx, vy, vz
 # angular_velocity: wx, wy, wz
 robot_cmd:
   linear_velocity: [0.0, 0.0, 0.0]
-  angular_velocity: [0.0, 0.0, 0.1]
+  angular_velocity: [0.0, 0.0, 0.0]
 
 # t_stance: time in stance phase (s)
 # t_swing: time in swing phase (s)

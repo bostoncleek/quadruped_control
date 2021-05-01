@@ -108,9 +108,6 @@ int main(int argc, char** argv)
   ros::ServiceServer start_server =
       nh.advertiseService("start_position", startConfigCallback);
 
-  ros::AsyncSpinner spinner(2);
-  spinner.start();
-
   // Robot
   const auto urdf_path = pnh.param<std::string>("urdf_path", "../urdf/robot.urdf");
   ROS_INFO_NAMED(LOGNAME, "File path: %s", urdf_path.c_str());
@@ -126,9 +123,9 @@ int main(int argc, char** argv)
 
   // Robot initial pose
   // See MultibodyPlant SetPositions() to set init joint positions
-  std::vector<double> init_pose = { 0.0, 0.0, 0.0 };
+  std::vector<double> init_position = { 0.0, 0.0, 0.0 };
   std::vector<double> init_orientation = { 0.0, 0.0, 0.0, 1.0 };
-  pnh.getParam("initial_pose/postion", init_pose);
+  pnh.getParam("initial_pose/position", init_position);
   pnh.getParam("initial_pose/orientation", init_orientation);
 
   // Robot kinematics
@@ -169,7 +166,7 @@ int main(int argc, char** argv)
   }
 
   // Place base_link relative to world_body
-  const Vector3d start_position(init_pose.data());
+  const Vector3d start_position(init_position.data());
   const Quaterniond start_orientation(init_orientation.data());
   const RigidTransformd Twb(start_orientation, start_position);
 
@@ -277,6 +274,8 @@ int main(int argc, char** argv)
   auto current_time = 0.0;
   while (nh.ok())
   {
+    ros::spinOnce();
+
     // TODO: which context to use? I think this is required to get the current trajectory context.
     const drake::systems::Context<double>& context = simulator.get_context();
 
@@ -381,6 +380,6 @@ int main(int argc, char** argv)
     current_time += viz_time_step;
   }
 
-  ros::waitForShutdown();
+  ros::shutdown();
   return 0;
 }

@@ -2,58 +2,39 @@
  * @file pid_controller.cpp
  * @date 2021-02-21
  * @author Boston Cleek
- * @brief PID control
+ * @brief Joint PD control
  */
 
-#include <exception>
 #include <quadruped_controller/joint_controller.hpp>
+#include <quadruped_controller/math/numerics.hpp>
 
 namespace quadruped_controller
 {
-JointController::JointController(const vec& kp, const vec& kd)
-  : tau_lim_(false)
-  , kp_(kp)
-  , kd_(kd)
-  , q_error_(kd.size(), arma::fill::zeros)
-  , v_error_(kd.size(), arma::fill::zeros)
+using math::normalize_angle_2PI;
+using math::normalize_angle_PI;
+
+JointController::JointController(const vec3& kff, const vec3& kp, const vec3& kd)
+  : kff_(kff), kp_(kp), kd_(kd)
 {
-  if (kp.size() != kd.size())
-  {
-    throw std::invalid_argument("The dimension of kp must equal the dimension of kd");
-  }
 }
 
-JointController::JointController(const vec& kp, const vec& kd, const vec& tau_ff,
-                                 double tau_min, double tau_max)
-  : tau_lim_(true)
-  , tau_min_(tau_min)
-  , tau_max_(tau_max)
-  , tau_ff_(tau_ff)
-  , kp_(kp)
-  , kd_(kd)
-  , q_error_(kd.size(), arma::fill::zeros)
-  , v_error_(kd.size(), arma::fill::zeros)
+TorqueMap JointController::control(const JointStatesMap& joints_ref_map,
+                                   const JointStatesMap& joints_map) const
 {
-  if (kp.size() != kd.size())
+  TorqueMap torque_map;
+  for (const auto& [leg_name, joint_ref_states] : joints_ref_map)
   {
-    throw std::invalid_argument("The dimension of kp must equal the dimension of kd");
-  }
-}
+    const vec3 q_error_normalized = normalize_angle_2PI(joint_ref_states.q) -
+                                    normalize_angle_2PI(joints_map.at(leg_name).q);
 
-vec JointController::control(const vec& q, const vec& qd, const vec& v, const vec& vd)
-{
-  q_error_ = qd - q;
-  v_error_ = vd - v;
-  vec tau = kp_ % q_error_ + kd_ % v_error_ + tau_ff_;
+    const vec3 q_error = normalize_angle_PI(q_error_normalized);
 
-  if (tau_lim_)
-  {
-    // std::cout << "Tau limit" << std::endl;
-    tau = arma::clamp(tau, tau_min_, tau_max_);
-    // tau.print("tau");
+    const vec3 qdot_error = joint_ref_states.qdot - joints_map.at(leg_name).qdot;
+    const vec3 tau = kp_ % q_error + kd_ % qdot_error + kff_;
+
+    torque_map.emplace(leg_name, tau);
   }
 
-  return tau;
+  return torque_map;
 }
-
 }  // namespace quadruped_controller

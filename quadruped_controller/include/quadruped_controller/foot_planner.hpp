@@ -7,21 +7,26 @@
 #ifndef FOOTHOLD_HPP
 #define FOOTHOLD_HPP
 
+#include <tuple>
 #include <quadruped_controller/types.hpp>
 
 namespace quadruped_controller
 {
+using std::tuple;
+
 class FootPlanner
 {
 public:
   FootPlanner();
 
-  FootholdMap positions(double t_stance, const mat33& Rwb, const vec3& x,
-                        const vec3& xdot, const vec3& xdot_d, const vec3& w_d,
-                        const GaitMap& gait_map) const;
+  tuple<bool, FootholdMap> positions(double t_stance, const mat33& Rwb, const vec3& x,
+                                     const vec3& xdot, const vec3& w, const vec3& xdot_d,
+                                     const FootholdMap& foot_holds,
+                                     const GaitMap& gait_map) const;
 
   vec3 singleFoot(double t_stance, const mat33& Rwb, const vec3& x, const vec3& xdot,
-                  const vec3& xdot_d, const vec3& w_d, const std::string& leg_name) const;
+                  const vec3& w, const vec3& xdot_d, const vec3& foot_position,
+                  const std::string& leg_name) const;
 
 private:
   std::vector<std::string> updateStates(const GaitMap& gait_map) const;

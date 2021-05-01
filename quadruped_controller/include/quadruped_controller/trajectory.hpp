@@ -36,23 +36,23 @@ using quadruped_controller::math::Transform3d;
  */
 Pose integrate_twist_yaw(const Pose& pose, const vec& u, double dt);
 
-/** @brief Base control (z, roll, pitch, yaw) only when standing */
-class StanceBaseControl
-{
-public:
-  StanceBaseControl();
+// /** @brief Base control (z, roll, pitch, yaw) only when standing */
+// class StanceBaseControl
+// {
+// public:
+//   StanceBaseControl();
 
-  StanceBaseControl(const Pose& pose);
+//   StanceBaseControl(const Pose& pose);
 
-  void setPose(const Pose& pose);
+//   void setPose(const Pose& pose);
 
-  Pose integrateTwist(const Pose& pose, const vec& u, double dt);
+//   Pose integrateTwist(const Pose& pose, const vec& u, double dt);
 
-private:
-  Pose pose_;
-  const unsigned int update{ 5 };
-  unsigned int i{ 0 };
-};
+// private:
+//   Pose pose_;
+//   const unsigned int update{ 5 };
+//   unsigned int i{ 0 };
+// };
 
 /** @brief COM reference trajectory generator */
 // class BaseTrajectory
@@ -151,7 +151,7 @@ public:
    * @brief Plans leg swing trajectory
    * @param gait_map - gait schedule
    * @param foot_traj_map - leg names and starting and final footholds
-   * @return FootStateMap - foot positions and velocities of feet in FootTrajBoundsMap
+   * @return FootStateMap - foot positions and velocities of feet
    * @details Clears previous trajectories and plans new trajectories for
    * feet in the FootTrajBoundsMap. The input feet and output feet are in
    * the same reference frame.

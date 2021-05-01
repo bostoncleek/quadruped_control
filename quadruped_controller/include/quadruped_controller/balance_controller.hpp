@@ -116,11 +116,11 @@ private:
    * @param wdot_d - desired COM angular acceleration (3x1)
    * @return Newton-Euler dynamics written as a linear problem Ax = b [R1] Eq(5)
    * @details Euler single rigid body dyanmics are described by tau = I*wdot + w x (I*w).
-   * The cross product term (w x (I*w)) is assumed to be ~ 0, therefore, the dynamics are
-   * linear. The cross product term is small for bodies with small angular velocities.
+   * However, the cross product term is small for bodies with small angular velocities
+   * they are included.
    */
   tuple<mat, vec> dynamics(const mat& ft_p, const mat& Rwb, const vec& x,
-                           const vec& xddot_d, const vec& wdot_d) const;
+                           const vec& xddot_d, const vec& w_d, const vec& wdot_d) const;
 
 private:
   /**

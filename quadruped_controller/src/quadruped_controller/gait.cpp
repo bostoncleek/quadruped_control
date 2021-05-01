@@ -106,7 +106,7 @@ void GaitScheduler::execute() const
 
     update(dt);
 
-    // std::this_thread::sleep_for(std::chrono::milliseconds(5));  // 200 Hz
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));  // 200 Hz
   }
 }
 
@@ -125,7 +125,7 @@ void GaitScheduler::update(double dt) const
 LegState GaitScheduler::phase(double phase) const
 {
   if ((phase > 0.0 || almost_equal(phase, 0.0)) &&
-      (phase < stance_phase_ || almost_equal(phase, stance_phase_)))
+      ((phase < stance_phase_) || almost_equal(phase, stance_phase_)))
   {
     return LegState::stance;
   }

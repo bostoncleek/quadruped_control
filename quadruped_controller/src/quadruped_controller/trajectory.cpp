@@ -7,6 +7,7 @@
 
 // C++
 #include <exception>
+#include <algorithm>
 
 // ROS
 #include <ros/console.h>
@@ -17,7 +18,7 @@
 
 namespace quadruped_controller
 {
-static const std::string LOGNAME = "Trajectory Generator";
+static const std::string LOGNAME = "trajectory_generator";
 
 using std::cos;
 using std::pow;
@@ -83,7 +84,7 @@ vec SupportPolygon::position(const ScheduledPhasesMap& phase_map,
   // map leg name -> total weight for foot
   std::map<std::string, double> weight_map;
 
-  // constant and add epsilon to prevent division by 0
+  // constant and
   const auto root2 = std::sqrt(2.0);
 
   // Compose weights
@@ -97,16 +98,18 @@ vec SupportPolygon::position(const ScheduledPhasesMap& phase_map,
       const auto c0 = phase_map.at(leg_name).stance_start;
       const auto cf = phase_map.at(leg_name).stance_end;
 
-      weight = 0.5 * (std::erf(phase / (c0 * root2 + +1.0e-6)) +
-                      std::erf((1.0 - phase) / (cf * root2 + +1.0e-6)));
+      // add epsilon to prevent division by 0
+      weight = 0.5 * (std::erf(phase / (c0 * root2 + 1.0e-12)) +
+                      std::erf((1.0 - phase) / (cf * root2 + 1.0e-12)));
     }
     else
     {
       const auto s0 = phase_map.at(leg_name).swing_start;
       const auto sf = phase_map.at(leg_name).swing_end;
 
-      weight = 0.5 * (2.0 + std::erf(-phase / (s0 * root2 + +1.0e-6)) +
-                      std::erf((phase - 1.0) / (sf * root2 + +1.0e-6)));
+      // add epsilon to prevent division by 0
+      weight = 0.5 * (2.0 + std::erf(-phase / (s0 * root2 + 1.0e-12)) +
+                      std::erf((phase - 1.0) / (sf * root2 + 1.0e-12)));
     }
 
     weight_map.emplace(leg_name, weight);
@@ -118,11 +121,12 @@ vec SupportPolygon::position(const ScheduledPhasesMap& phase_map,
   for (const auto& [leg_name, weight] : weight_map)
   {
     // Only use x,y positions
-    const vec p = foot_map.at(leg_name).rows(0, 1);  // foot position
-    const vec p_minus = foot_map.at(adjacent_leg_map_.at(leg_name).first)
-                            .rows(0, 1);  // clockwise foot position
-    const vec p_plus = foot_map.at(adjacent_leg_map_.at(leg_name).second)
-                           .rows(0, 1);  // counter clockwise foot position
+    // foot position
+    const vec p = foot_map.at(leg_name).rows(0, 1);
+    // clockwise foot position
+    const vec p_minus = foot_map.at(adjacent_leg_map_.at(leg_name).first).rows(0, 1);
+    // counter clockwise foot position
+    const vec p_plus = foot_map.at(adjacent_leg_map_.at(leg_name).second).rows(0, 1);
 
     const vec zeta_minus = p * weight + p_minus * (1.0 - weight);
     const vec zeta_plus = p * weight + p_plus * (1.0 - weight);
@@ -130,8 +134,8 @@ vec SupportPolygon::position(const ScheduledPhasesMap& phase_map,
     const auto w_minus = weight_map.at(adjacent_leg_map_.at(leg_name).first);
     const auto w_plus = weight_map.at(adjacent_leg_map_.at(leg_name).second);
 
-    supports.col(i) = (1.0 / (weight + w_minus + w_plus)) * weight * p +
-                      w_minus * zeta_minus + w_plus * zeta_plus;
+    supports.col(i) = (1.0 / (weight + w_minus + w_plus)) *
+                      (weight * p + w_minus * zeta_minus + w_plus * zeta_plus);
     i++;
   }
 
@@ -142,63 +146,63 @@ vec SupportPolygon::position(const ScheduledPhasesMap& phase_map,
   return zeta;
 }
 
-/////////////////////////////////////////////////////////
+// ///////////////////////////////////////////////////////
 // StanceBaseControl
-StanceBaseControl::StanceBaseControl()
-{
-}
+// StanceBaseControl::StanceBaseControl()
+// {
+// }
 
-StanceBaseControl::StanceBaseControl(const Pose& pose) : pose_(pose)
-{
-}
+// StanceBaseControl::StanceBaseControl(const Pose& pose) : pose_(pose)
+// {
+// }
 
-void StanceBaseControl::setPose(const Pose& pose)
-{
-  pose_ = pose;
-}
+// void StanceBaseControl::setPose(const Pose& pose)
+// {
+//   pose_ = pose;
+// }
 
-Pose StanceBaseControl::integrateTwist(const Pose& pose, const vec& u, double dt)
-{
-  // TODO update when error becomes too large
-  if (i == update)
-  {
-    pose_ = pose;
-  }
+// Pose StanceBaseControl::integrateTwist(const Pose& pose, const vec& u, double dt)
+// {
+//   // TODO update when error becomes too large
+//   if (i == update)
+//   {
+//     pose_ = pose;
+//   }
 
-  i++;
+//   i++;
 
-  // change in angle axis
-  const vec3 delta_aa = u.rows(3, 5) * dt;
-  const double angle = arma::norm(delta_aa);
+//   // change in angle axis
+//   const vec3 delta_aa = u.rows(3, 5) * dt;
+//   const double angle = arma::norm(delta_aa);
 
-  // rotation from b to b'
-  mat Rbbp = arma::eye(3, 3);
-  // translation from b to b'
-  vec3 tbbp(arma::fill::zeros);
+//   // rotation from b to b'
+//   mat Rbbp = arma::eye(3, 3);
+//   // translation from b to b'
+//   vec3 tbbp(arma::fill::zeros);
 
-  // no rotation
-  if (math::almost_equal(angle, 0.0))
-  {
-    tbbp = u.rows(0, 2) * dt;
-  }
+//   // no rotation
+//   if (math::almost_equal(angle, 0.0))
+//   {
+//     tbbp = u.rows(0, 2) * dt;
+//   }
 
-  else
-  {
-    // construct rotation from change in anle axis
-    const vec3 axis = delta_aa / angle;
-    Rbbp = Quaternion(angle, axis).matrix();
+//   else
+//   {
+//     // construct rotation from change in anle axis
+//     const vec3 axis = delta_aa / angle;
+//     Rbbp = Quaternion(angle, axis).matrix();
 
-    // rotate translation
-    tbbp = Rbbp * u.rows(0, 2) * dt;
-  }
+//     // rotate translation
+//     tbbp = Rbbp * u.rows(0, 2) * dt;
+//   }
 
-  // Twb' = Twb * Tbb'
-  const Transform3d Twbp = pose_.transform() * Transform3d(Rbbp, tbbp);
+//   // Twb' = Twb * Tbb'
+//   const Transform3d Twbp = pose_.transform() * Transform3d(Rbbp, tbbp);
 
-  // Update internal pose
-  pose_ = Pose(Twbp);
-  return pose_;
-}
+//   // Update internal pose
+//   pose_ = Pose(Twbp);
+//   return pose_;
+// }
 
 /////////////////////////////////////////////////////////
 // BaseTrajectory
@@ -300,10 +304,6 @@ FootTrajectoryManager::FootTrajectoryManager(double height, double t_swing,
   , slope_(1.0 / (1.0 - stance_phase_))
   , y_intercept_(1.0 - slope_)
 {
-  // traj_map_.emplace("RL", FootTrajectory());
-  // traj_map_.emplace("FL", FootTrajectory());
-  // traj_map_.emplace("RR", FootTrajectory());
-  // traj_map_.emplace("FR", FootTrajectory());
 }
 
 FootStateMap
@@ -324,17 +324,19 @@ FootTrajectoryManager::referenceStates(const GaitMap& gait_map,
     p_center(2) = height_;
 
     FootTrajectory foot_traj;
-    if (!foot_traj.generateTrajetory(foot_traj_bounds.p_start, p_center,
-                                     foot_traj_bounds.p_final))
-    {
-      ROS_ERROR_NAMED(LOGNAME, "Failed to generate foot trajectory for leg: %s",
-                      leg_name.c_str());
-    }
-    else
+    if (foot_traj.generateTrajetory(foot_traj_bounds.p_start, p_center,
+                                    foot_traj_bounds.p_final))
     {
       traj_map_.emplace(leg_name, foot_traj);
     }
 
+    else
+    {
+      ROS_ERROR_NAMED(LOGNAME, "Failed to generate foot trajectory for leg: %s",
+                      leg_name.c_str());
+    }
+
+    ROS_DEBUG_NAMED(LOGNAME, "Finished planning trajectory for leg: %s", leg_name.c_str());
     // Get reference foot states for leg
     const FootState foot_state = referenceState(leg_name, gait_map.at(leg_name).second);
     foot_state_map.emplace(leg_name, foot_state);
@@ -368,7 +370,12 @@ FootState FootTrajectoryManager::referenceState(const std::string& leg_name,
   if (search != traj_map_.end())
   {
     // Time in the trajecotry is a function of the swing phase i.e trajectory(t(phase))
-    const auto t = slope_ * phase + y_intercept_;
+    const auto t = std::clamp(slope_ * phase + y_intercept_, 0.0, 1.0);
+    // if (leg_name == "FL")
+    // {
+    //   std::cout << "t: " << t << " phase: " << phase << std::endl;
+    // }
+
     return traj_map_.at(leg_name).trackTrajectory(t);
   }
 

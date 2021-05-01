@@ -1,5 +1,5 @@
 # Quadruped Control 
-Based on ETH Zuirch Star1ETH, IIT HyQ, and MIT cheetah. 
+The control architecture is based on the ETH Zürich Star1ETH, IIT HyQ, and MIT Mini Cheetah. 
 
 Currently the robot can transition from start to standing and balance using a ground
 reaction force controller formulated as a QP. 

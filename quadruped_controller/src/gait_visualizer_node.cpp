@@ -22,17 +22,17 @@
 #include <std_srvs/Empty.h>
 #include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Twist.h>
+#include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/TransformStamped.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <tf2_ros/transform_broadcaster.h>
 
 // Quadruped Control
-#include <quadruped_controller/joint_controller.hpp>
 #include <quadruped_controller/balance_controller.hpp>
 #include <quadruped_controller/gait.hpp>
-#include <quadruped_controller/trajectory.hpp>
-#include <quadruped_controller/kinematics.hpp>
 #include <quadruped_controller/foot_planner.hpp>
+#include <quadruped_controller/kinematics.hpp>
+#include <quadruped_controller/trajectory.hpp>
 #include <quadruped_controller/math/numerics.hpp>
 #include <quadruped_msgs/CoMState.h>
 #include <quadruped_msgs/JointTorqueCmd.h>
@@ -46,9 +46,9 @@ using std::pow;
 
 using namespace quadruped_controller;
 
-static const std::string LOGNAME = "Gait Visualizer";
+static const std::string LOGNAME = "gait_visualizer";
 
-std::vector<visualization_msgs::MarkerArray>
+visualization_msgs::MarkerArray
 footTrajViz(const FootTrajectoryManager& foot_traj_manager, const std::string& leg_name,
             double stance_phase, double t_swing)
 {
@@ -56,31 +56,18 @@ footTrajViz(const FootTrajectoryManager& foot_traj_manager, const std::string& l
   const auto dt = (1.0 - stance_phase) / steps;
 
   visualization_msgs::MarkerArray position_marker_array;
-  visualization_msgs::MarkerArray velocity_marker_array;
   position_marker_array.markers.resize(steps);
-  velocity_marker_array.markers.resize(steps);
 
   auto phase = stance_phase;
   for (unsigned int i = 0; i < steps; i++)
   {
     const FootState foot_state = foot_traj_manager.referenceState(leg_name, phase);
-
-    velocity_marker_array.markers.at(i).header.frame_id =
-        position_marker_array.markers.at(i).header.frame_id = "world";
-
-    velocity_marker_array.markers.at(i).header.stamp =
-        position_marker_array.markers.at(i).header.stamp = ros::Time::now();
-
-    velocity_marker_array.markers.at(i).ns = position_marker_array.markers.at(i).ns =
-        leg_name;
-
-    velocity_marker_array.markers.at(i).id = position_marker_array.markers.at(i).id = i;
-
-    velocity_marker_array.markers.at(i).action =
-        position_marker_array.markers.at(i).action = visualization_msgs::Marker::ADD;
-
-    velocity_marker_array.markers.at(i).lifetime =
-        position_marker_array.markers.at(i).lifetime = ros::Duration(t_swing);
+    position_marker_array.markers.at(i).header.frame_id = "world";
+    position_marker_array.markers.at(i).header.stamp = ros::Time::now();
+    position_marker_array.markers.at(i).ns = leg_name;
+    position_marker_array.markers.at(i).id = i;
+    position_marker_array.markers.at(i).action = visualization_msgs::Marker::ADD;
+    position_marker_array.markers.at(i).lifetime = ros::Duration(t_swing);
 
     // Foot positions as points
     position_marker_array.markers.at(i).type = visualization_msgs::Marker::SPHERE;
@@ -91,28 +78,6 @@ footTrajViz(const FootTrajectoryManager& foot_traj_manager, const std::string& l
     position_marker_array.markers.at(i).scale.x = 0.01;
     position_marker_array.markers.at(i).scale.y = 0.01;
     position_marker_array.markers.at(i).scale.z = 0.01;
-
-    // Foot velocities as arrows
-    // velocity_marker_array.markers.at(i).type = visualization_msgs::Marker::ARROW;
-    // velocity_marker_array.markers.at(i).pose = position_marker_array.markers.at(i).pose;
-
-    // const auto vel_mag = arma::norm(foot_state.velocity);
-    // // const auto yaw = std::acos(foot_state.velocity(0) / vel_mag); // alpha
-    // // const auto roll = std::acos(foot_state.velocity(1) / vel_mag); // beta
-    // // const auto pitch = std::acos(foot_state.velocity(2) / vel_mag); // gamma
-    // const auto yaw = std::atan2(foot_state.velocity(1), foot_state.velocity(0));
-    // const auto roll = std::atan2(foot_state.velocity(2), foot_state.velocity(1));
-    // const auto pitch = -std::asin(foot_state.velocity(2) / vel_mag);
-    // math::Quaternion quat = math::Rotation3d(roll, pitch, yaw).toQuaternion();
-
-    // velocity_marker_array.markers.at(i).pose.orientation.x = quat.x();
-    // velocity_marker_array.markers.at(i).pose.orientation.y = quat.y();
-    // velocity_marker_array.markers.at(i).pose.orientation.z = quat.z();
-    // velocity_marker_array.markers.at(i).pose.orientation.w = quat.w();
-
-    // velocity_marker_array.markers.at(i).scale.x = 0.02;
-    // velocity_marker_array.markers.at(i).scale.y = 0.005;
-    // velocity_marker_array.markers.at(i).scale.z = 0.005;
 
     if (leg_name == "FL" || leg_name == "RR")
     {
@@ -129,12 +94,10 @@ footTrajViz(const FootTrajectoryManager& foot_traj_manager, const std::string& l
       position_marker_array.markers.at(i).color.a = 1.0;
     }
 
-    velocity_marker_array.markers.at(i).color = position_marker_array.markers.at(i).color;
-
     phase += dt;
   }
 
-  return { position_marker_array, velocity_marker_array };
+  return position_marker_array;
 }
 
 int main(int argc, char** argv)
@@ -146,14 +109,12 @@ int main(int argc, char** argv)
   ros::Publisher foot_traj_position_pub =
       nh.advertise<visualization_msgs::MarkerArray>("foot_trajectory_markers", 1);
 
-  // ros::Publisher foot_traj_velocity_pub =
-  //     nh.advertise<visualization_msgs::MarkerArray>("foot_trajectory_velocity_markers", 1);
-
   ros::Publisher joint_state_pub =
       nh.advertise<sensor_msgs::JointState>("joint_states", 1);
 
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
+  // Lookup TF from base to foot when leg is in stance phase
+  tf2_ros::Buffer tfBuffer;
+  tf2_ros::TransformListener tfListener(tfBuffer);
 
   // Broadcast post of robot in world frame
   tf2_ros::TransformBroadcaster tf_broadcaster;
@@ -234,15 +195,18 @@ int main(int argc, char** argv)
   std::vector<double> position = { 0.0, 0.0, 0.0 };
   std::vector<double> orientation = { 0.0, 0.0, 0.0, 1.0 };
   std::vector<double> linear_velocity = { 0.0, 0.0, 0.0, 0.0 };
+  std::vector<double> angular_velocity = { 0.0, 0.0, 0.0 };
   pnh.getParam("robot_state/position", position);
   pnh.getParam("robot_state/orientation", orientation);
   pnh.getParam("robot_state/linear_velocity", linear_velocity);
+  pnh.getParam("robot_state/angular_velocity", angular_velocity);
 
   const Quaternion quat_wb = math::Quaternion(orientation.at(3), orientation.at(0),
                                               orientation.at(1), orientation.at(2));
   const mat33 Rwb = quat_wb.matrix();
-  vec x(position);
+  const vec x(position);
   const vec xdot(linear_velocity);
+  const vec w(angular_velocity);
 
   geometry_msgs::TransformStamped T_world_base;
   T_world_base.header.frame_id = "world";
@@ -288,59 +252,21 @@ int main(int argc, char** argv)
   const GaitScheduler gait_scheduler(t_swing, t_stance, phase_offset);  // gait schedule
   gait_scheduler.start();
 
-  // TODO: auto populate this
-  ScheduledPhasesMap schedule_map;
-  schedule_map.emplace("RL", LegScheduledPhases{ 0.0, 0.5, 0.5, 1.0 });
-  schedule_map.emplace("FL", LegScheduledPhases{ 0.5, 1.0, 0.0, 0.5 });
-  schedule_map.emplace("RR", LegScheduledPhases{ 0.5, 1.0, 0.0, 0.5 });
-  schedule_map.emplace("FR", LegScheduledPhases{ 0.0, 0.5, 0.5, 1.0 });
-
+  ros::Rate rate(5.0);
   while (nh.ok())
   {
+    ros::spinOnce();
+
     // Start planning leg swing trajectories
     const GaitMap gait_map = gait_scheduler.schedule();
 
-    // Plan footholds
-    const FootholdMap foothold_final_map =
-        foothold_planner.positions(t_stance, Rwb, x, xdot, xdot_d, w_d, gait_map);
+    // std::cout << "New loop \n";
+    // for (const auto& [key, value] : gait_map)
+    // {
+    //   std::cout << key << " = " << value.first << " " << value.second << "\n";
+    // }
 
-    // Foot reference states
-    FootStateMap foot_states_map;
-
-    // Check if foothold planning happened
-    if (foothold_final_map.empty())
-    {
-      // No planning just update reference foot states
-      foot_states_map = foot_traj_manager.referenceStates(gait_map);
-    }
-
-    else
-    {
-      // Foot trajectory position only boundary conditions
-      FootTrajBoundsMap foot_traj_map;
-      for (const auto& [leg_name, p_final] : foothold_final_map)
-      {
-        foot_traj_map.emplace(leg_name,
-                              FootTrajBounds(foothold_start_map.at(leg_name), p_final));
-      }
-
-      // Will generate foot trajectories
-      foot_states_map = foot_traj_manager.referenceStates(gait_map, foot_traj_map);
-
-      // Visualize foot trajectories
-      for (const auto& leg : foothold_final_map)
-      {
-        auto traj_marker_messages =
-            footTrajViz(foot_traj_manager, leg.first, stance_phase, t_swing);
-
-        foot_traj_position_pub.publish(traj_marker_messages.at(0));
-
-        // TODO: fix arrows or remove them
-        // foot_traj_velocity_pub.publish(traj_marker_messages.at(1));
-      }
-    }
-
-    // Foot positions of all the feet for the support polygon
+    // Foot positions of all the feet
     FootholdMap foot_map;
 
     // Publish joint states
@@ -368,6 +294,7 @@ int main(int argc, char** argv)
 
       else
       {
+        // Move leg back to initial joints position when in stance
         joint_states_msg.header.stamp = ros::Time::now();
         joint_states_msg.name = leg_joints_name_map.at(leg_name);
         joint_states_msg.position = leg_joints_init_positions_map.at(leg_name);
@@ -383,26 +310,53 @@ int main(int argc, char** argv)
       }
     }
 
-    SupportPolygon support_poylgon;
-    vec xy_COM_virtual = support_poylgon.position(schedule_map, foot_map, gait_map);
+    // Plan footholds
+    const auto foothold_plan =
+        foothold_planner.positions(t_stance, Rwb, x, xdot, w, xdot_d, foot_map, gait_map);
 
-    // if (!xy_COM_virtual.has_nan() && !xy_COM_virtual.has_inf())
-    // {
-    //   // xy_COM_virtual(0) = std::clamp(xy_COM_virtual(0), 0.0, 0.5);
-    //   // xy_COM_virtual(1) = std::clamp(xy_COM_virtual(1), 0.0, 0.5);
+    const bool new_footholds = std::get<bool>(foothold_plan);
+    const FootholdMap foothold_final_map = std::get<FootholdMap>(foothold_plan);
 
-    //   xy_COM_virtual.print("xy_COM_virtual");
-    //   // // x(0) = xy_COM_virtual(0);
-    //   x(1) = xy_COM_virtual(1);
-    //   T_world_base.transform.translation.x = xy_COM_virtual(0);
-    //   T_world_base.transform.translation.y = xy_COM_virtual(1);
-    // }
+    // Foot reference states
+    FootStateMap foot_states_map;
+
+    // Check if foothold planning happened
+    if (!new_footholds)
+    {
+      // No planning just update reference foot states
+      foot_states_map = foot_traj_manager.referenceStates(gait_map);
+    }
+
+    else
+    {
+      // Foot trajectory position only boundary conditions
+      FootTrajBoundsMap foot_traj_map;
+      for (const auto& [leg_name, p_final] : foothold_final_map)
+      {
+        foot_traj_map.emplace(leg_name,
+                              FootTrajBounds(foothold_start_map.at(leg_name), p_final));
+      }
+
+      // Will generate foot trajectories
+      foot_states_map = foot_traj_manager.referenceStates(gait_map, foot_traj_map);
+
+      // Visualize foot trajectories
+      for (const auto& leg : foothold_final_map)
+      {
+        const auto traj_marker_message =
+            footTrajViz(foot_traj_manager, leg.first, stance_phase, t_swing);
+
+        foot_traj_position_pub.publish(traj_marker_message);
+      }
+    }
 
     // Broadcast robot pose
     T_world_base.header.stamp = ros::Time::now();
     tf_broadcaster.sendTransform(T_world_base);
+
+    // rate.sleep();
   }
 
-  ros::waitForShutdown();
+  ros::shutdown();
   return 0;
 }

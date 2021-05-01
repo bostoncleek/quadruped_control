@@ -4,12 +4,12 @@ teleop_twist_joy:
     x: 1
     y: 0
   scale_linear:
-    x: 0.5
-    y: 0.5
+    x: 0.20
+    y: 0.1
   axis_angular:
     yaw: 3
   scale_angular:
-    yaw: 0.5
+    yaw: 0.05
   enable_button: 4
 joy_node:
   deadzone: 0.1

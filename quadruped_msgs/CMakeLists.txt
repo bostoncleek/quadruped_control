@@ -10,7 +10,10 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(
   FILES
   CoMState.msg
+	FootState.msg
 	JointTorqueCmd.msg
+	LegJoints.msg 
+	LegJointState.msg 
 )
 
 # add_service_files(

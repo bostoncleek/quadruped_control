@@ -100,14 +100,12 @@ add_dependencies(${PROJECT_NAME} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EX
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
 add_executable(commander src/commander_node.cpp)
-# add_executable(fake_gait src/fake_gait_node.cpp)
 add_executable(gait_visualizer src/gait_visualizer_node.cpp)
 add_executable(test_node src/test_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(commander ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-# add_dependencies(fake_gait ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(gait_visualizer ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 add_dependencies(test_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
@@ -124,12 +122,6 @@ target_link_libraries(commander
   ${PROJECT_NAME}
   ${ARMADILLO_LIBRARIES}
 )
-
-# target_link_libraries(fake_gait
-#   ${catkin_LIBRARIES}
-#   ${PROJECT_NAME}
-#   ${ARMADILLO_LIBRARIES}
-# )
 
 target_link_libraries(gait_visualizer
   ${catkin_LIBRARIES}
