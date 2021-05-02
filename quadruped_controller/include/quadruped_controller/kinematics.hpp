@@ -13,8 +13,9 @@
 #include <functional>
 #include <cmath>
 
-#define ARMA_DONT_PRINT_ERRORS
 // Linear Algebra
+// Disable Armadillo printing errors
+#define ARMA_DONT_PRINT_ERRORS
 #include <armadillo>
 
 #include <quadruped_controller/types.hpp>
@@ -81,7 +82,8 @@ public:
    * @param leg_name - name of leg
    * @param joints - leg joint angles [hip, thigh, calf]
    * @return single leg jacobian inverse (3x3)
-   * @details If the jacobian is singular the Moore-Penrose pseudo-inverse is returned
+   * @details If the jacobian is singular the Moore-Penrose pseudo-inverse is returned. If the 
+   * pseudo-inverse cannot be solved for within tolerance then the transpose is returned.
    */
   mat33 legJacobianInverse(const std::string& leg_name, const vec3& q) const;
 
@@ -93,7 +95,7 @@ public:
    * @details The forces correspond to all four legs [RL, FL, RR, FR] where
    * each force is of the format [fx, fy, fz] in the body frame.
    */
-  // vec jacobianTransposeControl(const vec& q, const vec& f) const;
+  vec jacobianTransposeControl(const vec& q, const vec& f) const;
 
   /**
    * @brief Compose the joint torques

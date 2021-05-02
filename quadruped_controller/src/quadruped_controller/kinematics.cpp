@@ -190,20 +190,11 @@ mat33 QuadrupedKinematics::legJacobian(const std::string& leg_name, const vec3& 
 mat33 QuadrupedKinematics::legJacobianInverse(const std::string& leg_name,
                                               const vec3& q) const
 {
-  // const mat33 J = legJacobian(leg_name, q);
-  // if (const auto det = arma::det(J); math::almost_equal(det, 0.0) || std::fabs(det) < 5.0e-2)
-  // {
-  //   return arma::pinv(J);
-  // }
-
-  // return arma::inv(J);
-
   mat33 Jinv;
-  const mat33 J = legJacobian(leg_name, q);
-
+  const mat33 J = legJacobian(leg_name, q);  
   if (!arma::inv(Jinv, J))
   {
-    if (!arma::pinv(Jinv, J, 1.0e-3))
+    if (!arma::pinv(Jinv, J))
     {
       Jinv = J.t();
     }
@@ -212,27 +203,17 @@ mat33 QuadrupedKinematics::legJacobianInverse(const std::string& leg_name,
   return Jinv;
 }
 
-// vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f) const
-// {
-//   vec tau(12);
+vec QuadrupedKinematics::jacobianTransposeControl(const vec& q, const vec& f) const
+{
+  vec tau(12);
 
-//   // const mat j_rl = legJacobian("RL", q.rows(0, 2));
-//   // const mat j_fl = legJacobian("FL", q.rows(3, 5));
-//   // const mat j_rr = legJacobian("RR", q.rows(6, 8));
-//   // const mat j_fr = legJacobian("FR", q.rows(9, 11));
+  tau.rows(0, 2) = legJacobianInverse("RL", q.rows(0, 2)) * f.rows(0, 2);
+  tau.rows(3, 5) = legJacobianInverse("FL", q.rows(3, 5)) * f.rows(3, 5);
+  tau.rows(6, 8) = legJacobianInverse("RR", q.rows(6, 8)) * f.rows(6, 8);
+  tau.rows(9, 11) = legJacobianInverse("FR", q.rows(9, 11)) * f.rows(9, 11);
 
-//   // tau.rows(0, 2) = j_rl.t() * f.rows(0, 2);
-//   // tau.rows(3, 5) = j_fl.t() * f.rows(3, 5);
-//   // tau.rows(6, 8) = j_rr.t() * f.rows(6, 8);
-//   // tau.rows(9, 11) = j_fr.t() * f.rows(9, 11);
-
-//   tau.rows(0, 2) = legJacobianInverse("RL", q.rows(0, 2)) * f.rows(0, 2);
-//   tau.rows(3, 5) = legJacobianInverse("FL", q.rows(3, 5)) * f.rows(3, 5);
-//   tau.rows(6, 8) = legJacobianInverse("RR", q.rows(6, 8)) * f.rows(6, 8);
-//   tau.rows(9, 11) = legJacobianInverse("FR", q.rows(9, 11)) * f.rows(9, 11);
-
-//   return tau;
-// }
+  return tau;
+}
 
 TorqueMap
 QuadrupedKinematics::jacobianTransposeControl(const JointStatesMap& joint_states_map,
