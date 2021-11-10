@@ -113,13 +113,16 @@ int main(int argc, char** argv)
   ROS_INFO_NAMED(LOGNAME, "File path: %s", urdf_path.c_str());
 
   // Physics
-  const auto time_step = pnh.param<double>("time_step", 0.001);
-  const auto viz_time_step = pnh.param<double>("viz_time_step", 0.001);
-  const auto static_friction = pnh.param<double>("static_friction", 1.0);
-  const auto dynamic_friction = pnh.param<double>("dynamic_friction", 1.0);
-  const auto penetration_allowance = pnh.param<double>("penetration_allowance", 0.001);
-  // const auto stiction_tolerance = pnh.param<double>("stiction_tolerance", 0.001);
-  const auto real_time_rate = pnh.param<double>("real_time_rate", 1.0);
+  const auto time_step = pnh.param<double>("physics/time_step", 0.001);
+  const auto viz_time_step = pnh.param<double>("physics/viz_time_step", 0.001);
+  const auto static_friction = pnh.param<double>("physics/static_friction", 1.0);
+  const auto dynamic_friction = pnh.param<double>("physics/dynamic_friction", 1.0);
+  const auto penetration_allowance = pnh.param<double>("physics/penetration_allowance", 0.001);
+  // const auto stiction_tolerance = pnh.param<double>("physics/stiction_tolerance", 0.001);
+  const auto real_time_rate = pnh.param<double>("physics/real_time_rate", 1.0);
+
+  // Loop frequency 
+  const auto frequency = pnh.param<double>("physics/frequency", 600.0);
 
   // Robot initial pose
   // See MultibodyPlant SetPositions() to set init joint positions
@@ -272,6 +275,7 @@ int main(int argc, char** argv)
   // simulator.AdvanceTo(10.0);
 
   auto current_time = 0.0;
+  ros::Rate rate(frequency);
   while (nh.ok())
   {
     ros::spinOnce();
@@ -378,6 +382,8 @@ int main(int argc, char** argv)
     // "Real time rate: %f", simulator.get_actual_realtime_rate());
     simulator.AdvanceTo(current_time);
     current_time += viz_time_step;
+
+    rate.sleep();
   }
 
   ros::shutdown();
