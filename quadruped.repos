@@ -2,7 +2,7 @@ repositories:
   quadruped_control:
     type: git
     url: https://github.com/bostoncleek/quadruped_control.git
-    version: main
+    version: master
   mit_cheetah_description:
     type: git
     url: https://github.com/bostoncleek/mit_cheetah_description.git
