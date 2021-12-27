@@ -4,8 +4,8 @@ project(quadruped_simulation)
 # add compile options
 add_compile_options(-Wall -Wextra)
 
-# Compile as C++20
-set(CMAKE_CXX_STANDARD 20)
+# Compile as C++17
+set(CMAKE_CXX_STANDARD 17)
 # don't use gnu extensions
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
